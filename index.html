@@ -3,63 +3,170 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#070a0f">
-  <meta name="description" content="Linux Gym — an interactive browser-first command line trainer. Learn Linux by doing real-feeling shell missions.">
-  <title>Linux Gym — Train the Shell</title>
+  <meta name="theme-color" content="#f4f5f1">
+  <meta name="description" content="Linux Gym — a serious browser-first Linux and DevOps training platform with a stateful shell, adaptive practice and exams.">
+  <title>Linux Gym — Learn Linux by Doing</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="responsive.css">
 </head>
 <body>
-  <div class="app-shell" id="app">
+  <div class="app" id="app">
     <header class="topbar">
-      <button class="brand" id="brandBtn" aria-label="Linux Gym home">
-        <span class="brand-mark" aria-hidden="true">$_</span>
-        <span class="brand-copy"><strong>LINUX</strong><span>GYM</span></span>
+      <button class="brand" id="homeBtn" aria-label="Linux Gym home">
+        <span class="brand-mark" aria-hidden="true">&gt;_</span>
+        <span class="brand-text"><strong>Linux Gym</strong><small>practice environment</small></span>
       </button>
-      <div class="topbar-center"><div class="session-status"><span class="status-dot"></span><span>TRAINING SESSION</span></div></div>
-      <div class="topbar-actions">
-        <button class="metric-button" id="streakBtn" title="Current streak"><span class="metric-icon">↯</span><span id="streakValue">1</span><span class="metric-label">day</span></button>
-        <button class="metric-button" id="xpBtn" title="Experience points"><span class="metric-icon">◇</span><span id="xpValue">0</span><span class="metric-label">XP</span></button>
-        <button class="icon-button" id="settingsBtn" aria-label="Open settings" title="Settings">⚙</button>
+      <div class="top-context">
+        <span class="context-track" id="contextTrack">Linux Fundamentals</span>
+        <span class="context-separator">/</span>
+        <span class="context-task" id="contextTask">Orientation</span>
+      </div>
+      <div class="top-actions">
+        <div class="top-stat" title="Overall mastery"><span>Mastery</span><strong id="masteryValue">0%</strong></div>
+        <div class="top-stat" title="Experience points"><span>XP</span><strong id="xpValue">0</strong></div>
+        <button class="icon-btn" id="settingsBtn" aria-label="Settings" title="Settings">⋯</button>
       </div>
     </header>
 
     <aside class="sidebar" id="sidebar">
-      <div class="sidebar-head"><div><div class="eyebrow">LEARNING PATH</div><h1>Linux Fundamentals</h1></div><button class="icon-button compact mobile-only" id="closeSidebarBtn" aria-label="Close course navigation">×</button></div>
-      <div class="overall-progress"><div class="progress-copy"><span id="courseProgressText">0% complete</span><span id="courseRepText">0/0 reps</span></div><div class="progress-track"><div class="progress-fill" id="courseProgressBar"></div></div></div>
-      <nav class="module-list" id="moduleList" aria-label="Course modules"></nav>
+      <div class="sidebar-head">
+        <div>
+          <span class="section-label">LEARNING PATH</span>
+          <h1>Linux &amp; DevOps</h1>
+        </div>
+        <button class="icon-btn mobile-only" id="closeSidebarBtn" aria-label="Close navigation">×</button>
+      </div>
+
+      <div class="progress-block">
+        <div class="progress-copy"><span id="progressText">0 of 0 complete</span><strong id="progressPercent">0%</strong></div>
+        <div class="progress-track"><div class="progress-fill" id="progressBar"></div></div>
+      </div>
+
+      <button class="practice-card" id="adaptiveBtn">
+        <span class="practice-icon">↗</span>
+        <span><strong>Practice weak spots</strong><small id="adaptiveText">Adaptive queue is ready</small></span>
+      </button>
+
+      <nav class="track-list" id="trackList" aria-label="Course tracks"></nav>
+
       <div class="sidebar-footer">
-        <button class="secondary-action" id="dailyBtn"><span class="action-symbol">⌁</span><span><strong>Daily challenge</strong><small>Random precision rep</small></span></button>
-        <button class="secondary-action" id="resetCourseBtn"><span class="action-symbol">↺</span><span><strong>Reset progress</strong><small>Start the path again</small></span></button>
+        <button class="quiet-btn" id="dailyBtn">Daily challenge</button>
+        <button class="quiet-btn" id="resetProgressBtn">Reset progress</button>
       </div>
     </aside>
 
     <main class="workspace">
-      <section class="mission-panel" id="missionPanel">
-        <div class="mobile-workspace-nav mobile-only"><button class="mobile-tab active" data-mobile-panel="mission">Mission</button><button class="mobile-tab" data-mobile-panel="terminal">Terminal</button><button class="mobile-tab" data-mobile-panel="map">Course</button></div>
-        <div class="mission-scroll">
-          <div class="mission-meta"><button class="ghost-chip" id="moduleChip">01 · ORIENTATION</button><div class="mission-counter" id="missionCounter">REP 1 / 1</div></div>
-          <div class="mission-heading"><div class="rep-number" id="repNumber">01</div><div><div class="eyebrow" id="missionEyebrow">FOUNDATION REP</div><h2 id="missionTitle">Find your bearings</h2></div></div>
-          <p class="mission-description" id="missionDescription"></p>
-          <div class="objective-card"><div class="objective-top"><span class="objective-label">OBJECTIVE</span><span class="objective-state" id="objectiveState">WAITING</span></div><div class="objective-text" id="objectiveText"></div><div class="check-list" id="checkList"></div></div>
-          <div class="coach-card" id="coachCard"><div class="coach-head"><span class="coach-icon">◎</span><div><strong>Coach</strong><small id="coachStatus">Watching your shell</small></div></div><p id="coachText">Type a command in the terminal. The mission completes automatically when the target state is reached.</p></div>
-          <div class="hint-area"><button class="text-action" id="hintBtn"><span>＋</span> Reveal a hint</button><div class="hint-card hidden" id="hintCard"></div></div>
-          <div class="mission-footer"><button class="nav-button" id="prevMissionBtn">← Previous</button><div class="keyboard-tip"><kbd>↑</kbd><kbd>↓</kbd> history · <kbd>Tab</kbd> complete</div><button class="nav-button primary" id="nextMissionBtn">Next rep →</button></div>
+      <div class="mobile-tabs mobile-only" id="mobileTabs">
+        <button class="mobile-tab active" data-mobile-view="lesson">Mission</button>
+        <button class="mobile-tab" data-mobile-view="terminal">Terminal</button>
+        <button class="mobile-tab" data-mobile-view="course">Course</button>
+      </div>
+
+      <section class="lesson" id="lessonPanel">
+        <div class="lesson-scroll">
+          <div class="lesson-topline">
+            <div class="breadcrumb"><span id="trackIndex">01</span><span id="trackName">Fundamentals</span></div>
+            <div class="difficulty" id="difficultyBadge">Core</div>
+          </div>
+
+          <div class="lesson-title-wrap">
+            <span class="task-number" id="taskNumber">01</span>
+            <div>
+              <span class="section-label" id="taskKind">PRACTICE</span>
+              <h2 id="taskTitle">Find your bearings</h2>
+            </div>
+          </div>
+
+          <p class="lesson-description" id="taskDescription"></p>
+
+          <div class="objective">
+            <div class="objective-head">
+              <span>Objective</span>
+              <strong class="objective-status" id="objectiveStatus">In progress</strong>
+            </div>
+            <p id="objectiveText"></p>
+            <div class="checks" id="checkList"></div>
+          </div>
+
+          <div class="concepts" id="conceptList"></div>
+
+          <div class="coach hidden" id="coachBox">
+            <div class="coach-head"><strong>Coach</strong><span id="coachMeta">Contextual feedback</span></div>
+            <p id="coachText"></p>
+          </div>
+
+          <div class="hint-row">
+            <button class="text-btn" id="hintBtn">Show hint</button>
+            <span id="attemptInfo">No mistakes yet</span>
+          </div>
+          <div class="hint hidden" id="hintBox"></div>
+
+          <div class="lesson-actions">
+            <button class="nav-btn" id="prevTaskBtn">← Previous</button>
+            <button class="nav-btn" id="restartTaskBtn">Reset lab</button>
+            <button class="nav-btn primary" id="nextTaskBtn">Next →</button>
+          </div>
         </div>
       </section>
 
       <section class="terminal-panel" id="terminalPanel">
-        <div class="terminal-toolbar"><div class="terminal-title"><span class="traffic red"></span><span class="traffic amber"></span><span class="traffic green"></span><span class="terminal-name">student@linux-gym</span></div><div class="terminal-actions"><span class="latency"><span class="status-dot"></span> LOCAL</span><button class="terminal-action" id="clearBtn" title="Clear terminal">Clear</button><button class="terminal-action" id="resetEnvBtn" title="Reset the virtual Linux environment">Reset env</button></div></div>
-        <div class="terminal" id="terminal" tabindex="0" aria-label="Interactive Linux terminal"><div class="terminal-output" id="terminalOutput"></div><div class="terminal-input-row" id="terminalInputRow"><span class="prompt" id="prompt">student@linux-gym:~$</span><input id="commandInput" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Shell command"></div></div>
-        <div class="terminal-statusbar"><span id="cwdStatus">~/</span><span class="terminal-status-help">type <code>help</code> for commands</span><span id="sessionTime">00:00</span></div>
+        <div class="terminal-toolbar">
+          <div class="terminal-id">
+            <span class="terminal-dot"></span>
+            <span>student@linux-gym</span>
+          </div>
+          <div class="terminal-tools">
+            <button class="terminal-btn" id="focusBtn">Focus</button>
+            <button class="terminal-btn" id="clearBtn">Clear</button>
+            <button class="terminal-btn" id="resetEnvBtn">Reset lab</button>
+          </div>
+        </div>
+
+        <div class="terminal" id="terminal" tabindex="0" aria-label="Interactive Linux terminal">
+          <div class="terminal-output" id="terminalOutput"></div>
+          <div class="input-row">
+            <span class="prompt" id="prompt">student@linux-gym:~$</span>
+            <input id="commandInput" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Shell command">
+          </div>
+        </div>
+
+        <div class="terminal-status">
+          <span id="cwdStatus">~</span>
+          <span id="branchStatus">main</span>
+          <span id="labStatus">local sandbox</span>
+        </div>
       </section>
     </main>
 
     <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
-    <dialog class="modal" id="settingsModal"><form method="dialog"><div class="modal-head"><div><div class="eyebrow">PREFERENCES</div><h3>Training settings</h3></div><button class="icon-button" value="cancel" aria-label="Close">×</button></div><div class="settings-grid"><label class="setting-row"><span><strong>Command sounds</strong><small>Subtle feedback on pass/fail</small></span><input type="checkbox" id="soundToggle"></label><label class="setting-row"><span><strong>Compact terminal</strong><small>Reduce terminal line spacing</small></span><input type="checkbox" id="compactToggle"></label><label class="setting-row"><span><strong>Show coach feedback</strong><small>Contextual guidance after commands</small></span><input type="checkbox" id="coachToggle" checked></label></div><div class="modal-actions"><button class="nav-button primary" value="default">Done</button></div></form></dialog>
+    <dialog class="modal" id="settingsModal">
+      <form method="dialog">
+        <div class="modal-head">
+          <div><span class="section-label">PREFERENCES</span><h3>Linux Gym</h3></div>
+          <button class="icon-btn" value="cancel" aria-label="Close">×</button>
+        </div>
+        <label class="setting"><span><strong>Compact terminal</strong><small>Tighter terminal line spacing</small></span><input type="checkbox" id="compactToggle"></label>
+        <label class="setting"><span><strong>Coach feedback</strong><small>Show guidance after mistakes</small></span><input type="checkbox" id="coachToggle" checked></label>
+        <label class="setting"><span><strong>Auto-advance</strong><small>Open the next task after success</small></span><input type="checkbox" id="autoAdvanceToggle"></label>
+        <div class="modal-note">Everything runs locally in your browser. Progress is stored on this device.</div>
+        <button class="nav-btn primary wide" value="default">Done</button>
+      </form>
+    </dialog>
 
-    <dialog class="modal achievement-modal" id="achievementModal"><form method="dialog"><div class="achievement-glyph">◇</div><div class="eyebrow">ACHIEVEMENT UNLOCKED</div><h3 id="achievementTitle">First rep</h3><p id="achievementText">Your first mission is complete.</p><button class="nav-button primary wide" value="default">Continue training</button></form></dialog>
+    <dialog class="modal" id="examModal">
+      <form method="dialog">
+        <span class="section-label">EXAM RESULT</span>
+        <h3 id="examTitle">Exam complete</h3>
+        <p id="examText"></p>
+        <button class="nav-btn primary wide" value="default">Continue</button>
+      </form>
+    </dialog>
   </div>
+
+  <script src="data.js"></script>
+  <script src="shell.js"></script>
+  <script src="runtime-fixes.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

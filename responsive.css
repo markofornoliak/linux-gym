@@ -1,0 +1,10 @@
+@media (max-width:820px){
+  .workspace{height:calc(100dvh - 54px);display:grid;grid-template-rows:44px minmax(0,1fr);grid-template-columns:1fr}
+  .mobile-tabs{grid-row:1;display:grid;grid-template-columns:repeat(3,1fr);position:relative;z-index:20;padding:7px;background:rgba(255,255,255,.97);border-bottom:1px solid var(--line)}
+  .lesson,.terminal-panel{grid-row:2;height:100%;min-height:0}
+  .lesson-scroll{height:100%;padding:24px 20px 28px}
+  .mobile-view-terminal .lesson{display:none}
+  .mobile-view-terminal .terminal-panel{display:grid}
+  body:not(.mobile-view-terminal) .lesson{display:block}
+  body:not(.mobile-view-terminal) .terminal-panel{display:none}
+}
