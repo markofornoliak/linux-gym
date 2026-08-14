@@ -1,6 +1,30 @@
 (function(root){
   'use strict';
 
+  const BS=String.fromCharCode(92);
+  const META=new Set('^$.*+?()[]{}|'.split(''));
+  const escapeRegex=text=>[...String(text)].map(ch=>META.has(ch)?BS+ch:ch).join('');
+  const canonicalPattern=example=>{
+    const body=escapeRegex(String(example||'').trim()).replace(/ +/g,BS+'s+');
+    return '^'+BS+'s*'+body+BS+'s*$';
+  };
+
+  const curriculum=root.LinuxGymData&&root.LinuxGymData.tasks;
+  if(Array.isArray(curriculum)){
+    for(const mission of curriculum){
+      for(const check of mission.checks||[]){
+        if(check.type==='command'){
+          check.pattern=canonicalPattern(mission.example);
+          check.flags='i';
+        }
+        if(check.type==='history'&&mission.id==='exams/exam-devops'){
+          check.pattern='curl'+BS+'s+-s'+BS+'s+http://localhost/health';
+          check.flags='i';
+        }
+      }
+    }
+  }
+
   const Shell=root.LinuxGymShell&&root.LinuxGymShell.VirtualShell;
   if(Shell){
     const originalHelp=Shell.prototype._cmd_help;
