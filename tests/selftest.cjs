@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 
 require('../data.js');
 require('../shell.js');
+require('../runtime-fixes.js');
 
 const { tracks, tasks, totalTasks } = globalThis.LinuxGymData;
 const { VirtualShell } = globalThis.LinuxGymShell;
@@ -23,6 +24,7 @@ function run(command, includes) {
   return r;
 }
 
+run('help', /Linux Gym shell/);
 run('pwd', /\/home\/student/);
 run('mkdir -p projects/test/src');
 assert.ok(sh.exists('/home/student/projects/test/src'));
