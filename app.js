@@ -1,149 +1,234 @@
-(() => {
-  "use strict";
+(function(){
+'use strict';
 
-  const STORAGE_KEY = "linuxGymStateV3";
-  const SETTINGS_KEY = "linuxGymSettingsV1";
+const {tracks,tasks,totalTasks}=globalThis.LinuxGymData;
+const {VirtualShell}=globalThis.LinuxGymShell;
+const shell=new VirtualShell();
+const $=id=>document.getElementById(id);
 
-  const modules = [
-    { id:"orientation", title:"Orientation", subtitle:"Know where you are", reps:[
-      { id:"pwd", title:"Find your bearings", eyebrow:"FOUNDATION REP", description:"Before you can move confidently through a Linux system, you need to know where you are. Ask the shell for your current working directory.", objective:"Print your current working directory.", hints:["The command name is an abbreviation of “print working directory”.","Try <code>pwd</code>."], xp:20, checks:[{label:"Run <code>pwd</code>",test:s=>s.flags.lastCommand==="pwd"}] },
-      { id:"identity", title:"Know your identity", eyebrow:"FOUNDATION REP", description:"Linux permissions revolve around users. Confirm which account is currently driving the shell.", objective:"Print the current user name.", hints:["There is a command that literally asks “who am I?”.","Try <code>whoami</code>."], xp:20, checks:[{label:"Run <code>whoami</code>",test:s=>s.flags.lastCommand==="whoami"}] },
-      { id:"list-home", title:"Survey the room", eyebrow:"FOUNDATION REP", description:"A directory is just a container. List the entries in your home directory and inspect what is already there.", objective:"List the contents of your current directory.", hints:["Think “list”.","Try <code>ls</code>."], xp:20, checks:[{label:"List the directory",test:s=>s.flags.lastCommand?.startsWith("ls")}] }
-    ]},
-    { id:"navigation", title:"Navigation", subtitle:"Move without thinking", reps:[
-      { id:"cd-projects", title:"Enter the projects directory", eyebrow:"NAVIGATION REP", description:"Changing directories is one of the highest-frequency shell actions. Move from your home directory into the pre-created projects directory.", objective:"Change directory to <code>~/projects</code>.", hints:["Use the change-directory builtin.","Try <code>cd projects</code>."], xp:25, setup:s=>ensureDir(s,"/home/student/projects"), checks:[{label:"Working directory is <code>~/projects</code>",test:s=>s.cwd==="/home/student/projects"}] },
-      { id:"mkdir-lab", title:"Create a workspace", eyebrow:"NAVIGATION REP", description:"Build a dedicated directory for your experiments. The filesystem is your workspace; shaping it should become instinctive.", objective:"Create a directory named <code>lab</code> inside <code>~/projects</code>.", hints:["Use the make-directory command.","From <code>~/projects</code>, run <code>mkdir lab</code>."], xp:30, setup:s=>ensureDir(s,"/home/student/projects"), checks:[{label:"<code>~/projects/lab</code> exists",test:s=>isDir(s,"/home/student/projects/lab")}] },
-      { id:"cd-parent", title:"Move one level up", eyebrow:"NAVIGATION REP", description:"Relative paths keep commands fast. Use the special parent-directory path instead of typing an absolute location.", objective:"From <code>~/projects/lab</code>, move to <code>~/projects</code> using a relative path.", hints:["The parent directory is represented by two dots.","Run <code>cd ..</code>."], xp:30, setup:s=>{ensureDir(s,"/home/student/projects/lab");s.cwd="/home/student/projects/lab"}, checks:[{label:"Working directory is <code>~/projects</code>",test:s=>s.cwd==="/home/student/projects"},{label:"Used <code>cd ..</code>",test:s=>s.flags.lastCommand==="cd .."}] }
-    ]},
-    { id:"files", title:"Files", subtitle:"Create, move, remove", reps:[
-      { id:"touch-notes", title:"Create an empty file", eyebrow:"FILESYSTEM REP", description:"Many workflows begin by creating a placeholder file. Make one without opening an editor.", objective:"Create an empty file named <code>notes.txt</code> in <code>~/projects</code>.", hints:["Use the command that updates timestamps and creates a file if missing.","Try <code>touch notes.txt</code>."], xp:30, setup:s=>{ensureDir(s,"/home/student/projects");s.cwd="/home/student/projects"}, checks:[{label:"<code>notes.txt</code> exists",test:s=>isFile(s,"/home/student/projects/notes.txt")}] },
-      { id:"copy-notes", title:"Make a backup", eyebrow:"FILESYSTEM REP", description:"Copying is simple, but command order matters: source first, destination second.", objective:"Copy <code>notes.txt</code> to <code>notes.bak</code>.", hints:["The copy command is two letters.","Run <code>cp notes.txt notes.bak</code>."], xp:35, setup:s=>{ensureDir(s,"/home/student/projects");writeFile(s,"/home/student/projects/notes.txt","shell notes\n");s.cwd="/home/student/projects"}, checks:[{label:"<code>notes.bak</code> exists",test:s=>isFile(s,"/home/student/projects/notes.bak")}] },
-      { id:"rename", title:"Rename with move", eyebrow:"FILESYSTEM REP", description:"On Linux, renaming a file is just moving it to another name in the same directory.", objective:"Rename <code>draft.txt</code> to <code>final.txt</code>.", hints:["The move command also renames files.","Run <code>mv draft.txt final.txt</code>."], xp:35, setup:s=>{ensureDir(s,"/home/student/projects");writeFile(s,"/home/student/projects/draft.txt","ready\n");s.cwd="/home/student/projects"}, checks:[{label:"<code>final.txt</code> exists",test:s=>isFile(s,"/home/student/projects/final.txt")},{label:"<code>draft.txt</code> no longer exists",test:s=>!exists(s,"/home/student/projects/draft.txt")}] },
-      { id:"remove-temp", title:"Clean up", eyebrow:"FILESYSTEM REP", description:"Temporary files accumulate fast. Remove one deliberately and verify the state rather than relying on a success message.", objective:"Delete <code>temp.log</code>.", hints:["Use the remove command.","Run <code>rm temp.log</code>."], xp:30, setup:s=>{ensureDir(s,"/home/student/projects");writeFile(s,"/home/student/projects/temp.log","temporary\n");s.cwd="/home/student/projects"}, checks:[{label:"<code>temp.log</code> is gone",test:s=>!exists(s,"/home/student/projects/temp.log")}] }
-    ]},
-    { id:"text", title:"Text & Redirection", subtitle:"Read and write streams", reps:[
-      { id:"cat-file", title:"Read a file", eyebrow:"TEXT REP", description:"The fastest way to inspect a small text file is to send its contents straight to standard output.", objective:"Display the contents of <code>message.txt</code>.", hints:["The command is named after concatenation.","Run <code>cat message.txt</code>."], xp:30, setup:s=>{writeFile(s,"/home/student/message.txt","linux is a conversation with the machine\n");s.cwd="/home/student"}, checks:[{label:"Read <code>message.txt</code>",test:s=>s.flags.lastCommand==="cat message.txt"}] },
-      { id:"redirect", title:"Redirect output", eyebrow:"TEXT REP", description:"Shell redirection turns command output into files. This is one of the core ideas behind composable Unix workflows.", objective:"Write the text <code>hello linux</code> into <code>hello.txt</code> using output redirection.", hints:["Use <code>echo</code> plus the greater-than operator.","Run <code>echo hello linux &gt; hello.txt</code>."], xp:45, setup:s=>{s.cwd="/home/student";removePath(s,"/home/student/hello.txt")}, checks:[{label:"<code>hello.txt</code> contains “hello linux”",test:s=>readFile(s,"/home/student/hello.txt")?.trim()==="hello linux"}] },
-      { id:"append", title:"Append, don’t overwrite", eyebrow:"TEXT REP", description:"Sometimes you need to preserve existing content. Append a new line rather than replacing the file.", objective:"Append <code>beta</code> to <code>versions.txt</code> so it contains both alpha and beta.", hints:["Double the redirection operator to append.","Run <code>echo beta &gt;&gt; versions.txt</code>."], xp:45, setup:s=>{writeFile(s,"/home/student/versions.txt","alpha\n");s.cwd="/home/student"}, checks:[{label:"File contains both lines",test:s=>readFile(s,"/home/student/versions.txt")==="alpha\nbeta\n"}] },
-      { id:"grep", title:"Find the signal", eyebrow:"TEXT REP", description:"Logs are noisy. Filter them down to the lines that matter instead of reading everything.", objective:"Use <code>grep</code> to find lines containing <code>ERROR</code> in <code>app.log</code>.", hints:["The pattern comes before the filename.","Run <code>grep ERROR app.log</code>."], xp:40, setup:s=>{writeFile(s,"/home/student/app.log","INFO boot\nERROR database timeout\nINFO retry\nERROR disk full\n");s.cwd="/home/student"}, checks:[{label:"Filter <code>app.log</code> for <code>ERROR</code>",test:s=>s.flags.lastCommand==="grep ERROR app.log"}] }
-    ]},
-    { id:"pipes", title:"Pipes", subtitle:"Compose small tools", reps:[
-      { id:"pipe-wc", title:"Count matching lines", eyebrow:"PIPELINE REP", description:"The Unix superpower is composition: one command produces a stream, the next transforms it. Build a two-command pipeline.", objective:"Count how many lines in <code>access.log</code> contain <code>404</code> using <code>grep</code> piped to <code>wc -l</code>.", hints:["Join commands with the pipe character <code>|</code>.","Try <code>grep 404 access.log | wc -l</code>."], xp:60, setup:s=>{writeFile(s,"/home/student/access.log","200 /\n404 /x\n200 /docs\n404 /old\n404 /favicon.ico\n");s.cwd="/home/student"}, checks:[{label:"Run the 404 counting pipeline",test:s=>normalizeSpaces(s.flags.lastCommand)==="grep 404 access.log | wc -l"}] },
-      { id:"head", title:"Inspect the top", eyebrow:"PIPELINE REP", description:"Large files rarely need to be opened in full. Inspect just the beginning of a generated dataset.", objective:"Display the first 3 lines of <code>data.txt</code>.", hints:["Use <code>head</code> with a numeric line-count option.","Run <code>head -n 3 data.txt</code>."], xp:40, setup:s=>{writeFile(s,"/home/student/data.txt","one\ntwo\nthree\nfour\nfive\n");s.cwd="/home/student"}, checks:[{label:"Display exactly the first 3 lines",test:s=>normalizeSpaces(s.flags.lastCommand)==="head -n 3 data.txt"}] },
-      { id:"tail", title:"Inspect the bottom", eyebrow:"PIPELINE REP", description:"The bottom of a log usually contains the newest events. Pull only the tail instead of scanning the entire file.", objective:"Display the final 2 lines of <code>events.log</code>.", hints:["Use <code>tail</code> with <code>-n</code>.","Run <code>tail -n 2 events.log</code>."], xp:40, setup:s=>{writeFile(s,"/home/student/events.log","start\nconnect\nquery\nclose\n");s.cwd="/home/student"}, checks:[{label:"Display exactly the final 2 lines",test:s=>normalizeSpaces(s.flags.lastCommand)==="tail -n 2 events.log"}] }
-    ]},
-    { id:"permissions", title:"Permissions", subtitle:"Control access", reps:[
-      { id:"chmod-exec", title:"Make it executable", eyebrow:"PERMISSIONS REP", description:"A script can contain valid code and still be blocked from direct execution. Add the executable bit.", objective:"Make <code>deploy.sh</code> executable using <code>chmod +x</code>.", hints:["Change the file mode, adding execution permission.","Run <code>chmod +x deploy.sh</code>."], xp:55, setup:s=>{writeFile(s,"/home/student/deploy.sh","#!/bin/sh\necho deployed\n","rw-r--r--");s.cwd="/home/student"}, checks:[{label:"<code>deploy.sh</code> is executable",test:s=>getNode(s,"/home/student/deploy.sh")?.mode.includes("x")}] },
-      { id:"ls-perms", title:"Inspect hidden metadata", eyebrow:"PERMISSIONS REP", description:"The long listing exposes file modes, ownership, sizes, and hidden entries — exactly the metadata you need for diagnosis.", objective:"Run a long listing including hidden files.", hints:["Combine the <code>-l</code> and <code>-a</code> options.","Try <code>ls -la</code>."], xp:35, setup:s=>{writeFile(s,"/home/student/.env","MODE=dev\n");s.cwd="/home/student"}, checks:[{label:"Run <code>ls -la</code>",test:s=>["ls -la","ls -al"].includes(normalizeSpaces(s.flags.lastCommand))}] }
-    ]},
-    { id:"processes", title:"Processes", subtitle:"Observe and control", reps:[
-      { id:"ps", title:"See what is running", eyebrow:"PROCESS REP", description:"Processes are the live actors of a Linux system. Inspect the process table before you try to control anything.", objective:"Display the current process list.", hints:["Use the classic two-letter process-status command.","Run <code>ps</code> or <code>ps aux</code>."], xp:35, setup:s=>seedProcesses(s), checks:[{label:"Inspect processes",test:s=>s.flags.lastCommand==="ps"||s.flags.lastCommand==="ps aux"}] },
-      { id:"kill-worker", title:"Stop the runaway worker", eyebrow:"PROCESS REP", description:"A runaway process named <code>worker</code> is burning CPU. Find its PID with <code>ps</code>, then terminate it with <code>kill</code>.", objective:"Terminate the <code>worker</code> process.", hints:["Run <code>ps</code> first. Look at the PID beside <code>worker</code>.","The seeded worker PID is visible in <code>ps</code>; then use <code>kill PID</code>."], xp:70, setup:s=>seedProcesses(s), checks:[{label:"<code>worker</code> is no longer running",test:s=>!s.processes.some(p=>p.name==="worker")}] }
-    ]},
-    { id:"networking", title:"Networking", subtitle:"Read the machine", reps:[
-      { id:"ip", title:"Inspect interfaces", eyebrow:"NETWORK REP", description:"Before debugging connectivity, establish what interfaces and addresses the machine actually has.", objective:"Display the machine's network addresses with <code>ip addr</code>.", hints:["Use the modern <code>ip</code> utility.","Run <code>ip addr</code>."], xp:45, checks:[{label:"Run <code>ip addr</code>",test:s=>normalizeSpaces(s.flags.lastCommand)==="ip addr"}] },
-      { id:"ports", title:"Inspect listening ports", eyebrow:"NETWORK REP", description:"Services expose themselves through listening sockets. Learn to inspect the machine before guessing what is reachable.", objective:"List listening TCP sockets using <code>ss -ltn</code>.", hints:["Use the socket-statistics utility.","Run <code>ss -ltn</code>."], xp:50, checks:[{label:"Run <code>ss -ltn</code>",test:s=>normalizeSpaces(s.flags.lastCommand)==="ss -ltn"}] },
-      { id:"curl", title:"Probe a service", eyebrow:"NETWORK REP", description:"A local service is listening on port 8080. Probe its HTTP endpoint from the command line.", objective:"Request <code>http://localhost:8080</code> with <code>curl</code>.", hints:["Use the command-line URL client.","Run <code>curl http://localhost:8080</code>."], xp:55, checks:[{label:"Probe the local service",test:s=>s.flags.lastCommand==="curl http://localhost:8080"}] }
-    ]}
-  ];
+const els={
+  app:$('app'),sidebar:$('sidebar'),trackList:$('trackList'),progressText:$('progressText'),progressPercent:$('progressPercent'),progressBar:$('progressBar'),masteryValue:$('masteryValue'),xpValue:$('xpValue'),
+  adaptiveBtn:$('adaptiveBtn'),adaptiveText:$('adaptiveText'),dailyBtn:$('dailyBtn'),resetProgressBtn:$('resetProgressBtn'),homeBtn:$('homeBtn'),closeSidebarBtn:$('closeSidebarBtn'),
+  contextTrack:$('contextTrack'),contextTask:$('contextTask'),trackIndex:$('trackIndex'),trackName:$('trackName'),difficultyBadge:$('difficultyBadge'),taskNumber:$('taskNumber'),taskKind:$('taskKind'),taskTitle:$('taskTitle'),taskDescription:$('taskDescription'),objectiveText:$('objectiveText'),objectiveStatus:$('objectiveStatus'),checkList:$('checkList'),conceptList:$('conceptList'),
+  coachBox:$('coachBox'),coachMeta:$('coachMeta'),coachText:$('coachText'),hintBtn:$('hintBtn'),hintBox:$('hintBox'),attemptInfo:$('attemptInfo'),prevTaskBtn:$('prevTaskBtn'),nextTaskBtn:$('nextTaskBtn'),restartTaskBtn:$('restartTaskBtn'),
+  terminalPanel:$('terminalPanel'),terminal:$('terminal'),terminalOutput:$('terminalOutput'),prompt:$('prompt'),commandInput:$('commandInput'),cwdStatus:$('cwdStatus'),branchStatus:$('branchStatus'),labStatus:$('labStatus'),focusBtn:$('focusBtn'),clearBtn:$('clearBtn'),resetEnvBtn:$('resetEnvBtn'),
+  settingsBtn:$('settingsBtn'),settingsModal:$('settingsModal'),compactToggle:$('compactToggle'),coachToggle:$('coachToggle'),autoAdvanceToggle:$('autoAdvanceToggle'),examModal:$('examModal'),examTitle:$('examTitle'),examText:$('examText'),toastStack:$('toastStack')
+};
 
-  const allReps=modules.flatMap((m,mi)=>m.reps.map((r,ri)=>({...r,module:m,mi,ri})));
-  const dir=(children={})=>({type:"dir",children,mode:"rwxr-xr-x"});
-  const file=(content="",mode="rw-r--r--")=>({type:"file",content,mode});
-  const freshState=()=>({cwd:"/home/student",fs:dir({home:dir({student:dir({projects:dir({}),"welcome.txt":file("Welcome to Linux Gym.\nTrain the command, not the button.\n")})}),tmp:dir({}),etc:dir({hostname:file("linux-gym\n"),"os-release":file('NAME="Linux Gym OS"\nVERSION="1.0 browser"\n')}),var:dir({log:dir({})})}),processes:[],env:{HOME:"/home/student",USER:"student",SHELL:"/bin/bash",PATH:"/usr/local/bin:/usr/bin:/bin"},flags:{lastCommand:"",lastExit:0,commandsRun:0},history:[]});
+const STORAGE='linux-gym-v2';
+const today=()=>new Date().toISOString().slice(0,10);
+const defaultState=()=>({
+  completed:[],xp:0,currentTask:tasks[0].id,attempts:{},hints:{},scores:{},lastPracticeDate:null,streak:0,
+  settings:{compact:false,coach:true,autoAdvance:false},version:2
+});
+let state=loadState();
+let currentTask=tasks.find(t=>t.id===state.currentTask)||tasks[0];
+let taskStartHistory=0;
+let commandCursor=0;
+let lastCommand='';
+let lastResult={code:0,output:''};
+let focusMode=false;
+let autoAdvanceTimer=null;
 
-  let shell=freshState(),sessionStart=Date.now(),historyIndex=0,current=loadProgress(),settings=loadSettings(),hintLevel=0,activeRepSetupKey="";
-  const $=id=>document.getElementById(id);
-  const els={moduleList:$("moduleList"),missionTitle:$("missionTitle"),missionDescription:$("missionDescription"),objectiveText:$("objectiveText"),checkList:$("checkList"),moduleChip:$("moduleChip"),missionCounter:$("missionCounter"),repNumber:$("repNumber"),missionEyebrow:$("missionEyebrow"),objectiveState:$("objectiveState"),coachCard:$("coachCard"),coachText:$("coachText"),coachStatus:$("coachStatus"),hintBtn:$("hintBtn"),hintCard:$("hintCard"),prevMissionBtn:$("prevMissionBtn"),nextMissionBtn:$("nextMissionBtn"),terminal:$("terminal"),terminalOutput:$("terminalOutput"),commandInput:$("commandInput"),prompt:$("prompt"),cwdStatus:$("cwdStatus"),xpValue:$("xpValue"),streakValue:$("streakValue"),courseProgressText:$("courseProgressText"),courseRepText:$("courseRepText"),courseProgressBar:$("courseProgressBar"),sessionTime:$("sessionTime"),toastStack:$("toastStack"),settingsModal:$("settingsModal"),achievementModal:$("achievementModal"),achievementTitle:$("achievementTitle"),achievementText:$("achievementText"),soundToggle:$("soundToggle"),compactToggle:$("compactToggle"),coachToggle:$("coachToggle"),sidebar:$("sidebar"),workspace:document.querySelector(".workspace")};
+function loadState(){
+  try{const raw=localStorage.getItem(STORAGE);if(!raw)return defaultState();const parsed=JSON.parse(raw);return {...defaultState(),...parsed,settings:{...defaultState().settings,...(parsed.settings||{})}};}catch{return defaultState();}
+}
+function save(){state.currentTask=currentTask.id;localStorage.setItem(STORAGE,JSON.stringify(state));}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));}
+function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
+function pad(n){return String(n+1).padStart(2,'0');}
+function taskIndex(t=currentTask){return tasks.findIndex(x=>x.id===t.id);}
+function trackFor(t=currentTask){return tracks[t.trackIndex];}
+function isDone(id){return state.completed.includes(id);}
+function taskAttempts(id=currentTask.id){return state.attempts[id]||0;}
+function hintCount(id=currentTask.id){return state.hints[id]||0;}
+function difficultyName(n){return ['','Starter','Core','Applied','Advanced','Expert'][n]||'Core';}
 
-  function loadProgress(){try{const r=JSON.parse(localStorage.getItem(STORAGE_KEY)||"null");if(r)return{completed:Array.isArray(r.completed)?r.completed:[],xp:Number(r.xp)||0,moduleIndex:clamp(Number(r.moduleIndex)||0,0,modules.length-1),repIndex:Number(r.repIndex)||0,streak:Math.max(1,Number(r.streak)||1),lastVisit:r.lastVisit||todayKey(),achievements:Array.isArray(r.achievements)?r.achievements:[]}}catch{}return{completed:[],xp:0,moduleIndex:0,repIndex:0,streak:1,lastVisit:todayKey(),achievements:[]}}
-  function loadSettings(){try{const r=JSON.parse(localStorage.getItem(SETTINGS_KEY)||"null");if(r)return{sound:!!r.sound,compact:!!r.compact,coach:r.coach!==false}}catch{}return{sound:false,compact:false,coach:true}}
-  function saveProgress(){updateStreak();localStorage.setItem(STORAGE_KEY,JSON.stringify(current))}
-  function saveSettings(){localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings))}
-  function todayKey(){return new Date().toISOString().slice(0,10)}
-  function updateStreak(){const t=todayKey();if(current.lastVisit===t)return;const d=Math.round((new Date(t+"T00:00:00")-new Date(current.lastVisit+"T00:00:00"))/86400000);current.streak=d===1?current.streak+1:1;current.lastVisit=t}
-  function clamp(n,min,max){return Math.max(min,Math.min(max,n))}
-  function normalizeSpaces(s=""){return s.trim().replace(/\s+/g," ")}
-  function currentRep(){const m=modules[current.moduleIndex];current.repIndex=clamp(current.repIndex,0,m.reps.length-1);return m.reps[current.repIndex]}
-  function safeTest(fn){try{return!!fn(shell)}catch{return false}}
+function overallMastery(){
+  if(!totalTasks)return 0;
+  const completion=state.completed.length/totalTasks*100;
+  const quality=state.completed.length?Object.values(state.scores).reduce((a,b)=>a+b,0)/(state.completed.length*100)*10:0;
+  return Math.round(clamp(completion*.9+quality,0,100));
+}
+function trackMastery(track){const done=track.tasks.filter(t=>isDone(`${track.id}/${t.slug}`)).length;return Math.round(done/track.tasks.length*100);}
+function adaptiveTarget(){
+  const candidates=tracks.filter(t=>t.id!=='exams'&&trackMastery(t)<100).sort((a,b)=>trackMastery(a)-trackMastery(b));
+  if(!candidates.length)return tracks.find(t=>t.id==='exams')?.tasks.map(t=>tasks.find(x=>x.id===`exams/${t.slug}`)).find(t=>t&&!isDone(t.id))||tasks[0];
+  const weakest=candidates[0];const ability=clamp(1+Math.floor(state.completed.length/24),1,5);
+  const list=weakest.tasks.map(t=>tasks.find(x=>x.id===`${weakest.id}/${t.slug}`)).filter(t=>t&&!isDone(t.id));
+  return list.sort((a,b)=>Math.abs(a.difficulty-ability)-Math.abs(b.difficulty-ability))[0]||list[0];
+}
 
-  function renderAll({setup=true}={}){updateStreak();if(setup)setupCurrentRep();renderSidebar();renderMission();renderProgress();renderPrompt();applySettings()}
-  function setupCurrentRep(force=false){const r=currentRep(),key=`${current.moduleIndex}:${current.repIndex}`;if(!force&&activeRepSetupKey===key)return;shell=freshState();seedProcesses(shell);if(r.setup)r.setup(shell);activeRepSetupKey=key;hintLevel=0;historyIndex=shell.history.length;clearTerminal();printLine("Linux Gym virtual shell · type “help” if you get stuck","dim");printLine(`Mission loaded: ${r.title}`,"accent");printLine("");renderPrompt()}
-  function renderSidebar(){els.moduleList.innerHTML=modules.map((m,mi)=>{const done=m.reps.filter(r=>current.completed.includes(r.id)).length,active=mi===current.moduleIndex,allDone=done===m.reps.length;return `<div class="module ${active?"active":""} ${allDone?"done":""}"><button class="module-button" data-module="${mi}"><span class="module-index">${allDone?"✓":String(mi+1).padStart(2,"0")}</span><span class="module-copy"><strong>${escapeHtml(m.title)}</strong><small>${escapeHtml(m.subtitle)}</small></span><span class="module-progress">${done}/${m.reps.length}</span></button><div class="rep-list">${m.reps.map((r,ri)=>`<button class="rep-link ${active&&ri===current.repIndex?"active":""} ${current.completed.includes(r.id)?"done":""}" data-module="${mi}" data-rep="${ri}"><span class="rep-dot"></span><span>${escapeHtml(r.title)}</span></button>`).join("")}</div></div>`}).join("")}
-  function renderMission(){const m=modules[current.moduleIndex],r=currentRep(),done=current.completed.includes(r.id);els.moduleChip.textContent=`${String(current.moduleIndex+1).padStart(2,"0")} · ${m.title.toUpperCase()}`;els.missionCounter.textContent=`REP ${current.repIndex+1} / ${m.reps.length}`;els.repNumber.textContent=String(current.repIndex+1).padStart(2,"0");els.missionEyebrow.textContent=r.eyebrow;els.missionTitle.textContent=r.title;els.missionDescription.textContent=r.description;els.objectiveText.innerHTML=r.objective;els.objectiveState.textContent=done?"COMPLETE":"WAITING";els.objectiveState.classList.toggle("complete",done);renderChecks(r);els.hintCard.classList.add("hidden");els.hintBtn.innerHTML='<span>＋</span> Reveal a hint';els.nextMissionBtn.disabled=!done&&!isLastRep();els.nextMissionBtn.textContent=isLastRep()?(done?"Path complete ✓":"Complete rep"):"Next rep →";els.prevMissionBtn.disabled=current.moduleIndex===0&&current.repIndex===0;els.coachCard.classList.toggle("hidden",!settings.coach);els.coachText.textContent=done?"Rep complete. Move on while the command pattern is still fresh.":"Type a command in the terminal. The mission completes automatically when the target state is reached.";els.coachStatus.textContent=done?"Rep verified":"Watching your shell"}
-  function renderChecks(r){els.checkList.innerHTML=r.checks.map(ch=>{const ok=safeTest(ch.test);return `<div class="check-item ${ok?"done":""}"><span class="check-icon">✓</span><span>${ch.label}</span></div>`}).join("")}
-  function renderProgress(){const done=current.completed.length,total=allReps.length,pct=Math.round(done/total*100);els.xpValue.textContent=current.xp;els.streakValue.textContent=current.streak;els.courseProgressText.textContent=`${pct}% complete`;els.courseRepText.textContent=`${done}/${total} reps`;els.courseProgressBar.style.width=`${pct}%`}
-  function evaluateMission(){const r=currentRep();renderChecks(r);if(r.checks.every(ch=>safeTest(ch.test))&&!current.completed.includes(r.id)){current.completed.push(r.id);current.xp+=r.xp;saveProgress();renderProgress();renderSidebar();els.objectiveState.textContent="COMPLETE";els.objectiveState.classList.add("complete");els.coachStatus.textContent="Rep verified";els.coachText.textContent=`Clean execution. +${r.xp} XP. Move on while the command pattern is still fresh.`;els.nextMissionBtn.disabled=false;toast("Rep complete",`+${r.xp} XP · ${r.title}`,"success");beep(660,.055);maybeAchievement()}}
-  function maybeAchievement(){const c=current.completed.length,milestones=[[1,"first-rep","First rep","The shell is no longer theoretical. Your first mission is complete."],[5,"five-reps","Warming up","Five verified reps. The commands are starting to become reflexes."],[10,"ten-reps","Command rhythm","Ten reps down. You are composing a real working vocabulary."],[allReps.length,"path-complete","Linux Fundamentals","Every rep in the path is complete. Now repeat until it feels automatic."]],hit=milestones.find(([n,id])=>c===n&&!current.achievements.includes(id));if(!hit)return;const[,id,title,text]=hit;current.achievements.push(id);saveProgress();setTimeout(()=>{els.achievementTitle.textContent=title;els.achievementText.textContent=text;els.achievementModal.showModal()},450)}
-  function isLastRep(){return current.moduleIndex===modules.length-1&&current.repIndex===modules.at(-1).reps.length-1}
-  function goNext(){const r=currentRep();if(!current.completed.includes(r.id))return;if(isLastRep()){toast("Path complete","You finished Linux Fundamentals. Reset and run it faster.");return}if(current.repIndex<modules[current.moduleIndex].reps.length-1)current.repIndex++;else{current.moduleIndex++;current.repIndex=0}saveProgress();activeRepSetupKey="";renderAll()}
-  function goPrev(){if(current.moduleIndex===0&&current.repIndex===0)return;if(current.repIndex>0)current.repIndex--;else{current.moduleIndex--;current.repIndex=modules[current.moduleIndex].reps.length-1}saveProgress();activeRepSetupKey="";renderAll()}
-  function jumpTo(mi,ri=0){current.moduleIndex=clamp(mi,0,modules.length-1);current.repIndex=clamp(ri,0,modules[current.moduleIndex].reps.length-1);saveProgress();activeRepSetupKey="";renderAll();closeSidebarMobile()}
-  function resetCourse(){if(!confirm("Reset all Linux Gym progress and XP?"))return;localStorage.removeItem(STORAGE_KEY);current=loadProgress();activeRepSetupKey="";renderAll();toast("Progress reset","Fresh path, fresh environment.")}
-  function showDailyChallenge(){const unfinished=allReps.filter(r=>!current.completed.includes(r.id)),pool=unfinished.length?unfinished:allReps,pick=pool[Math.floor(Math.random()*pool.length)];jumpTo(pick.mi,pick.ri);toast("Daily challenge",pick.title)}
-  function revealHint(){const r=currentRep();hintLevel=Math.min(hintLevel+1,r.hints.length);els.hintCard.innerHTML=r.hints.slice(0,hintLevel).map((h,i)=>`<div>${i+1}. ${h}</div>`).join("");els.hintCard.classList.remove("hidden");els.hintBtn.innerHTML=hintLevel<r.hints.length?'<span>＋</span> Reveal another hint':'<span>✓</span> All hints revealed'}
+function renderAll(){renderSidebar();renderTask();renderStats();renderTerminalStatus();applySettings();}
+function renderStats(){
+  const pct=Math.round(state.completed.length/totalTasks*100);
+  els.progressText.textContent=`${state.completed.length} of ${totalTasks} complete`;
+  els.progressPercent.textContent=`${pct}%`;els.progressBar.style.width=`${pct}%`;els.masteryValue.textContent=`${overallMastery()}%`;els.xpValue.textContent=String(state.xp);
+  const target=adaptiveTarget();els.adaptiveText.textContent=target?`${target.trackTitle} · ${difficultyName(target.difficulty)}`:'Course complete';
+}
+function renderSidebar(){
+  els.trackList.innerHTML='';
+  tracks.forEach((tr,ti)=>{
+    const wrap=document.createElement('div');wrap.className='track'+(tr.id===currentTask.trackId?' active':'')+(trackMastery(tr)===100?' done':'');
+    const done=tr.tasks.filter(t=>isDone(`${tr.id}/${t.slug}`)).length;
+    const btn=document.createElement('button');btn.className='track-btn';btn.innerHTML=`<span class="track-index">${pad(ti)}</span><span class="track-copy"><strong>${esc(tr.title)}</strong><small>${esc(tr.subtitle)}</small></span><span class="track-progress">${done}/${tr.tasks.length}</span>`;
+    btn.addEventListener('click',()=>{const first=tasks.find(t=>t.trackId===tr.id&&!isDone(t.id))||tasks.find(t=>t.trackId===tr.id);if(first)selectTask(first);});wrap.appendChild(btn);
+    const list=document.createElement('div');list.className='task-list';
+    tr.tasks.forEach((raw,ri)=>{const t=tasks.find(x=>x.id===`${tr.id}/${raw.slug}`);const b=document.createElement('button');b.className='task-link'+(t.id===currentTask.id?' active':'')+(isDone(t.id)?' done':'');b.innerHTML=`<span class="task-dot"></span><span>${pad(ri)} ${esc(t.title)}</span>`;b.addEventListener('click',e=>{e.stopPropagation();selectTask(t);});list.appendChild(b);});
+    wrap.appendChild(list);els.trackList.appendChild(wrap);
+  });
+}
+function renderTask(){
+  const tr=trackFor();
+  els.contextTrack.textContent=tr.title;els.contextTask.textContent=currentTask.title;els.trackIndex.textContent=pad(currentTask.trackIndex);els.trackName.textContent=tr.title;
+  els.difficultyBadge.textContent=difficultyName(currentTask.difficulty);els.taskNumber.textContent=pad(currentTask.taskIndex);els.taskKind.textContent=currentTask.kind.toUpperCase();els.taskTitle.textContent=currentTask.title;els.taskDescription.textContent=currentTask.description;els.objectiveText.innerHTML=inlineCode(currentTask.objective);
+  els.conceptList.innerHTML=currentTask.concepts.map(x=>`<span class="concept">${esc(x)}</span>`).join('');
+  renderChecks();renderHint();renderAttemptInfo();
+  const idx=taskIndex();els.prevTaskBtn.disabled=idx<=0;els.nextTaskBtn.disabled=idx>=tasks.length-1;
+  els.objectiveStatus.textContent=isDone(currentTask.id)?'Complete':'In progress';els.objectiveStatus.classList.toggle('complete',isDone(currentTask.id));
+  if(isDone(currentTask.id)){els.coachBox.classList.add('hidden');}
+}
+function inlineCode(text){return esc(text).replace(/`([^`]+)`/g,'<code>$1</code>');}
+function renderChecks(){
+  els.checkList.innerHTML='';const statuses=evaluateChecks();
+  currentTask.checks.forEach((check,i)=>{const div=document.createElement('div');div.className='check'+(statuses[i]?' done':'');div.innerHTML=`<span class="check-mark">✓</span><span>${inlineCode(check.label)}</span>`;els.checkList.appendChild(div);});
+}
+function renderHint(){
+  const count=hintCount(),hints=currentTask.hints||[];
+  if(count<=0){els.hintBox.classList.add('hidden');els.hintBox.innerHTML='';els.hintBtn.textContent='Show hint';return;}
+  const shown=hints.slice(0,Math.min(count,hints.length));els.hintBox.innerHTML=shown.map((h,i)=>`<div>${i+1}. ${inlineCode(h)}</div>`).join('');els.hintBox.classList.remove('hidden');els.hintBtn.textContent=count<hints.length?'Show next hint':'Hints shown';
+}
+function renderAttemptInfo(){const n=taskAttempts();els.attemptInfo.textContent=n===0?'No mistakes yet':`${n} ${n===1?'mistake':'mistakes'} · adaptive score ${currentPerformance()}%`;}
+function currentPerformance(){return clamp(100-taskAttempts()*12-hintCount()*8,35,100);}
 
-  function handleCommand(raw){const command=raw.trim();if(!command){printLine("");return}shell.history.push(command);shell.flags.commandsRun++;shell.flags.lastCommand=normalizeSpaces(command);historyIndex=shell.history.length;printCommand(command);try{const result=executePipeline(command);shell.flags.lastExit=result.code;if(result.output)printRaw(result.output,result.code?"error":"");if(settings.coach)coachFor(command,result)}catch(err){shell.flags.lastExit=1;printLine(`shell: ${err.message}`,"error")}renderPrompt();evaluateMission()}
-  function executePipeline(command){const red=parseRedirect(command),base=red?red.command:command,parts=splitPipes(base);let input="",final={output:"",code:0};for(const part of parts){final=executeSimple(part.trim(),input);input=final.output||"";if(final.code!==0)break}if(red&&final.code===0){const p=resolvePath(red.file);if(red.append)writeFile(shell,p,(readFile(shell,p)||"")+final.output);else writeFile(shell,p,final.output);return{output:"",code:0}}return final}
-  function splitPipes(command){const out=[];let buf="",quote=null;for(let i=0;i<command.length;i++){const c=command[i];if((c==='"'||c==="'")&&command[i-1]!=="\\")quote=quote===c?null:(quote||c);if(c==="|"&&!quote){out.push(buf);buf=""}else buf+=c}out.push(buf);return out}
-  function parseRedirect(command){let quote=null;for(let i=0;i<command.length;i++){const c=command[i];if((c==='"'||c==="'")&&command[i-1]!=="\\")quote=quote===c?null:(quote||c);if(c===">"&&!quote){const append=command[i+1]===">",left=command.slice(0,i).trim(),right=command.slice(i+(append?2:1)).trim();if(!right)return null;return{command:left,file:stripQuotes(right),append}}}return null}
-  function tokenize(input){const out=[];let buf="",quote=null;for(let i=0;i<input.length;i++){const c=input[i];if(quote){if(c===quote&&input[i-1]!=="\\")quote=null;else buf+=c}else if(c==="'"||c==='"')quote=c;else if(/\s/.test(c)){if(buf){out.push(buf);buf=""}}else buf+=c}if(buf)out.push(buf);return out}
+function evaluateChecks(){return currentTask.checks.map(check=>evaluateCheck(check));}
+function evaluateCheck(check){
+  const path=check.value;
+  switch(check.type){
+    case 'command':{if(!lastCommand||lastResult.code!==0)return false;try{return new RegExp(check.pattern,check.flags||'i').test(lastCommand);}catch{return false;}}
+    case 'history':{const recent=shell.history.slice(taskStartHistory).join('\n');try{return new RegExp(check.pattern,check.flags||'i').test(recent);}catch{return false;}}
+    case 'cwd':return shell.cwd===check.value;
+    case 'exists':return shell.exists(path);
+    case 'missing':return !shell.exists(path);
+    case 'fileContains':return (shell.readFile(path)||'').includes(check.contains||'');
+    case 'mode':return shell.mode(path)===check.mode;
+    case 'owner':return shell.owner(path)===check.owner;
+    case 'executable':return shell.isExecutable(path);
+    case 'process':return shell.hasProcess(check.value);
+    case 'processMissing':return !shell.processByPid(check.value);
+    case 'processNameMissing':return !shell.hasProcess(check.value);
+    case 'env':return shell.env[check.value]===check.equals;
+    case 'git':return shell.git[check.value]===check.equals;
+    case 'gitStaged':return shell.git.staged.includes(check.value);
+    case 'gitCommits':return shell.git.commits.length>=(check.min||check.value||1);
+    case 'gitBranchExists':return shell.git.branches.includes(check.value);
+    case 'gitBranch':return shell.git.branch===check.value;
+    case 'gitRemote':return Boolean(shell.git.remotes[check.value]);
+    case 'gitStash':return shell.git.stash>=(check.min||1);
+    case 'dockerImage':return shell.hasDockerImage(check.value);
+    case 'dockerContainer':{const c=shell.dockerContainer(check.value);return Boolean(c)&&(!check.status||c.status===check.status)&&(!check.port||c.port===check.port);}
+    case 'dockerContainerMissing':return !shell.dockerContainer(check.value);
+    case 'service':return shell.services[check.value]?.status===check.status;
+    case 'serviceEnabled':return Boolean(shell.services[check.value]?.enabled);
+    default:return false;
+  }
+}
 
-  function executeSimple(part,stdin=""){const args=tokenize(part);if(!args.length)return{output:stdin,code:0};const cmd=args[0],rest=args.slice(1),commands={
-    help:()=>({output:`Linux Gym commands\n  pwd                 print working directory\n  ls [-la] [path]     list directory\n  cd [path]           change directory\n  mkdir [-p] path     create directory\n  touch file          create file\n  cat file            print file\n  echo text           print text\n  cp src dst          copy file\n  mv src dst          move / rename\n  rm [-r] path        remove file or directory\n  grep pattern [file] filter matching lines\n  head -n N [file]    first N lines\n  tail -n N [file]    last N lines\n  wc [-l] [file]      count text\n  chmod +x file       change executable bit\n  ps [aux]            list processes\n  kill PID            terminate process\n  ip addr             show network interfaces\n  ss -ltn             show listening TCP sockets\n  curl URL            request a simulated endpoint\n  whoami              current user\n  uname [-a]          system info\n  env                 environment variables\n  export K=V          set an environment variable\n  history             command history\n  clear               clear terminal\n  reset               reset current mission environment\n`,code:0}),
-    pwd:()=>({output:shell.cwd+"\n",code:0}),whoami:()=>({output:"student\n",code:0}),uname:()=>({output:rest.includes("-a")?"Linux linux-gym 6.8.0-browser #1 SMP x86_64 GNU/Linux\n":"Linux\n",code:0}),env:()=>({output:Object.entries(shell.env).map(([k,v])=>`${k}=${v}`).join("\n")+"\n",code:0}),export:()=>{const pair=rest.join(" "),i=pair.indexOf("=");if(i<1)return{output:"export: usage: export NAME=value\n",code:2};shell.env[pair.slice(0,i)]=pair.slice(i+1);return{output:"",code:0}},history:()=>({output:shell.history.map((h,i)=>`${String(i+1).padStart(4," ")}  ${h}`).join("\n")+"\n",code:0}),clear:()=>{clearTerminal();return{output:"",code:0}},reset:()=>{activeRepSetupKey="";setupCurrentRep(true);renderMission();return{output:"",code:0}},cd:()=>commandCd(rest),ls:()=>commandLs(rest),mkdir:()=>commandMkdir(rest),touch:()=>commandTouch(rest),cat:()=>commandCat(rest,stdin),echo:()=>({output:rest.join(" ")+"\n",code:0}),cp:()=>commandCp(rest),mv:()=>commandMv(rest),rm:()=>commandRm(rest),grep:()=>commandGrep(rest,stdin),head:()=>commandHeadTail(rest,stdin,true),tail:()=>commandHeadTail(rest,stdin,false),wc:()=>commandWc(rest,stdin),chmod:()=>commandChmod(rest),ps:()=>commandPs(rest),kill:()=>commandKill(rest),ip:()=>commandIp(rest),ss:()=>commandSs(rest),curl:()=>commandCurl(rest),date:()=>({output:new Date().toString()+"\n",code:0}),printf:()=>({output:rest.join(" ").replace(/\\n/g,"\n"),code:0})};if(!commands[cmd])return{output:`${cmd}: command not found\n`,code:127};return commands[cmd]()}
+function selectTask(task,opts={}){
+  if(!task)return;clearTimeout(autoAdvanceTimer);currentTask=task;state.currentTask=task.id;taskStartHistory=shell.history.length;lastCommand='';lastResult={code:0,output:''};
+  if(opts.resetLab)resetLab(false);else preparePrerequisites(task);
+  save();renderAll();closeMobileSidebar();if(window.innerWidth<=820)setMobileView('lesson');
+}
+function preparePrerequisites(task){
+  if(task.trackId==='git'&&task.taskIndex>0&&!shell.git.initialized){shell.git.initialized=true;shell.git.branch='main';shell.git.branches=['main'];}
+  if(task.trackId==='docker'&&task.taskIndex>=2&&!shell.hasDockerImage('nginx:alpine'))shell.docker.images.push('nginx:alpine');
+  if(task.trackId==='docker'&&task.taskIndex>=3&&task.taskIndex<=8&&!shell.dockerContainer('web'))shell.docker.containers.web={name:'web',image:'nginx:alpine',status:task.taskIndex>=7?'running':'running',port:'8080:80',id:'b3f9c2a18d11'};
+  if(task.trackId==='docker'&&task.taskIndex===8&&shell.dockerContainer('web'))shell.docker.containers.web.status='stopped';
+  if(task.trackId==='ssh'&&task.taskIndex>0&&!shell.exists('/home/student/.ssh/id_ed25519')){shell._setFile('/home/student/.ssh/id_ed25519','training-private-key\n','600');shell._setFile('/home/student/.ssh/id_ed25519.pub','ssh-ed25519 training student@linux-gym\n','644');}
+  if(task.trackId==='filesystem'&&task.taskIndex>=6&&!shell.exists('/home/student/status.txt'))shell._setFile('/home/student/status.txt','ready\n','644');
+  renderTerminalStatus();
+}
+function resetLab(showToast=true){shell.reset();taskStartHistory=0;lastCommand='';lastResult={code:0,output:''};preparePrerequisites(currentTask);clearTerminal();printWelcome();renderChecks();renderTerminalStatus();if(showToast)toast('Lab reset','The virtual Linux environment is back to a clean snapshot.');}
 
-  function commandCd(args){const target=args[0]||shell.env.HOME,path=resolvePath(target),node=getNode(shell,path);if(!node)return{output:`cd: ${target}: No such file or directory\n`,code:1};if(node.type!=="dir")return{output:`cd: ${target}: Not a directory\n`,code:1};shell.cwd=path;return{output:"",code:0}}
-  function commandLs(args){const opts=args.filter(a=>a.startsWith("-")).join(""),arg=args.find(a=>!a.startsWith("-"))||".",path=resolvePath(arg),node=getNode(shell,path);if(!node)return{output:`ls: cannot access '${arg}': No such file or directory\n`,code:2};if(node.type==="file")return{output:basename(path)+"\n",code:0};const showAll=opts.includes("a"),long=opts.includes("l");let names=Object.keys(node.children).filter(n=>showAll||!n.startsWith(".")).sort();if(showAll)names=[".","..",...names];if(!long)return{output:names.join("  ")+(names.length?"\n":""),code:0};const lines=names.map(name=>{if(name==="."||name==="..")return`drwxr-xr-x  2 student student 4096 Aug 14 10:00 ${name}`;const child=node.children[name],prefix=child.type==="dir"?"d":"-",mode=child.mode||(child.type==="dir"?"rwxr-xr-x":"rw-r--r--"),size=child.type==="file"?child.content.length:4096;return`${prefix}${mode.padEnd(9,"-")}  1 student student ${String(size).padStart(4," ")} Aug 14 10:00 ${name}`});return{output:lines.join("\n")+(lines.length?"\n":""),code:0}}
-  function commandMkdir(args){const recursive=args.includes("-p"),names=args.filter(a=>!a.startsWith("-"));if(!names.length)return{output:"mkdir: missing operand\n",code:1};for(const name of names){const path=resolvePath(name);if(exists(shell,path))return{output:`mkdir: cannot create directory '${name}': File exists\n`,code:1};if(recursive)ensureDir(shell,path);else{const parent=getNode(shell,dirname(path));if(!parent||parent.type!=="dir")return{output:`mkdir: cannot create directory '${name}': No such file or directory\n`,code:1};parent.children[basename(path)]=dir({})}}return{output:"",code:0}}
-  function commandTouch(args){if(!args.length)return{output:"touch: missing file operand\n",code:1};for(const name of args){const path=resolvePath(name);if(!exists(shell,path)){const parent=getNode(shell,dirname(path));if(!parent||parent.type!=="dir")return{output:`touch: cannot touch '${name}': No such file or directory\n`,code:1};parent.children[basename(path)]=file("")}}return{output:"",code:0}}
-  function commandCat(args,stdin){if(!args.length)return{output:stdin,code:0};let out="";for(const name of args){const node=getNode(shell,resolvePath(name));if(!node)return{output:`cat: ${name}: No such file or directory\n`,code:1};if(node.type!=="file")return{output:`cat: ${name}: Is a directory\n`,code:1};out+=node.content}return{output:out,code:0}}
-  function commandCp(args){if(args.length<2)return{output:"cp: missing file operand\n",code:1};const src=resolvePath(args[0]),dst=resolvePath(args[1]),node=getNode(shell,src);if(!node)return{output:`cp: cannot stat '${args[0]}': No such file or directory\n`,code:1};if(node.type!=="file")return{output:`cp: -r not specified; omitting directory '${args[0]}'\n`,code:1};writeFile(shell,dst,node.content,node.mode);return{output:"",code:0}}
-  function commandMv(args){if(args.length<2)return{output:"mv: missing file operand\n",code:1};const src=resolvePath(args[0]),dst=resolvePath(args[1]),node=getNode(shell,src);if(!node)return{output:`mv: cannot stat '${args[0]}': No such file or directory\n`,code:1};const parent=getNode(shell,dirname(dst));if(!parent||parent.type!=="dir")return{output:`mv: cannot move to '${args[1]}': No such directory\n`,code:1};parent.children[basename(dst)]=structuredClone(node);removePath(shell,src);return{output:"",code:0}}
-  function commandRm(args){const recursive=args.some(a=>a==="-r"||a==="-rf"||a==="-fr"),names=args.filter(a=>!a.startsWith("-"));if(!names.length)return{output:"rm: missing operand\n",code:1};for(const name of names){const path=resolvePath(name),node=getNode(shell,path);if(!node)return{output:`rm: cannot remove '${name}': No such file or directory\n`,code:1};if(node.type==="dir"&&!recursive)return{output:`rm: cannot remove '${name}': Is a directory\n`,code:1};removePath(shell,path)}return{output:"",code:0}}
-  function commandGrep(args,stdin){if(!args.length)return{output:"grep: missing pattern\n",code:2};const pattern=args[0];let text=stdin;if(args[1]){const c=readFile(shell,resolvePath(args[1]));if(c==null)return{output:`grep: ${args[1]}: No such file or directory\n`,code:2};text=c}const lines=text.split("\n").filter(line=>line.includes(pattern));return{output:lines.length?lines.join("\n")+"\n":"",code:lines.length?0:1}}
-  function commandHeadTail(args,stdin,isHead){let n=10,fileArg=null;for(let i=0;i<args.length;i++){if(args[i]==="-n"&&args[i+1]){n=Math.max(0,parseInt(args[i+1],10)||0);i++}else if(/^\-\d+$/.test(args[i]))n=parseInt(args[i].slice(1),10);else fileArg=args[i]}let text=stdin;if(fileArg){const c=readFile(shell,resolvePath(fileArg));if(c==null)return{output:`${isHead?"head":"tail"}: cannot open '${fileArg}' for reading\n`,code:1};text=c}const trailing=text.endsWith("\n");let lines=text.split("\n");if(trailing)lines.pop();lines=isHead?lines.slice(0,n):lines.slice(-n);return{output:lines.join("\n")+(lines.length?"\n":""),code:0}}
-  function commandWc(args,stdin){const lineOnly=args.includes("-l"),fileArg=args.find(a=>!a.startsWith("-"));let text=stdin;if(fileArg){const c=readFile(shell,resolvePath(fileArg));if(c==null)return{output:`wc: ${fileArg}: No such file or directory\n`,code:1};text=c}const lines=text?text.split("\n").length-(text.endsWith("\n")?1:0):0;if(lineOnly)return{output:`${lines}${fileArg?" "+fileArg:""}\n`,code:0};const words=text.trim()?text.trim().split(/\s+/).length:0;return{output:`${lines} ${words} ${text.length}${fileArg?" "+fileArg:""}\n`,code:0}}
-  function commandChmod(args){if(args.length<2)return{output:"chmod: missing operand\n",code:1};const mode=args[0],node=getNode(shell,resolvePath(args[1]));if(!node)return{output:`chmod: cannot access '${args[1]}': No such file or directory\n`,code:1};if(mode==="+x"||mode==="u+x"){const chars=(node.mode||"rw-r--r--").split("");chars[2]="x";node.mode=chars.join("");return{output:"",code:0}}return{output:`chmod: mode '${mode}' is not supported in this trainer yet\n`,code:1}}
-  function commandPs(args){if(args.includes("aux")||args.join("")==="aux"){const rows=shell.processes.map(p=>`student   ${String(p.pid).padStart(5," ")}  ${p.cpu.toFixed(1)}  0.1  10240  2048 ?        S    10:00   0:00 ${p.name}`);return{output:"USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND\n"+rows.join("\n")+"\n",code:0}}return{output:"  PID TTY          TIME CMD\n"+shell.processes.map(p=>`${String(p.pid).padStart(5," ")} pts/0    00:00:00 ${p.name}`).join("\n")+"\n",code:0}}
-  function commandKill(args){const pid=parseInt(args.at(-1),10);if(!pid)return{output:"kill: usage: kill PID\n",code:1};const i=shell.processes.findIndex(p=>p.pid===pid);if(i<0)return{output:`kill: (${pid}) - No such process\n`,code:1};shell.processes.splice(i,1);return{output:"",code:0}}
-  function commandIp(args){if(args[0]!=="addr"&&args[0]!=="a")return{output:"Usage: ip addr\n",code:1};return{output:"1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 state UNKNOWN\n    inet 127.0.0.1/8 scope host lo\n2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 state UP\n    inet 10.42.0.17/24 brd 10.42.0.255 scope global eth0\n",code:0}}
-  function commandSs(args){if(!args.includes("-ltn"))return{output:"ss: try 'ss -ltn' in this trainer\n",code:1};return{output:"State  Recv-Q Send-Q Local Address:Port Peer Address:Port\nLISTEN 0      128    127.0.0.1:8080      0.0.0.0:*\nLISTEN 0      128    0.0.0.0:22          0.0.0.0:*\n",code:0}}
-  function commandCurl(args){if(!args.length)return{output:"curl: try 'curl --help' for more information\n",code:2};const url=args.at(-1);if(url==="http://localhost:8080"||url==="http://127.0.0.1:8080")return{output:'{"status":"ok","service":"linux-gym"}\n',code:0};return{output:`curl: (6) Could not resolve host: ${url.replace(/^https?:\/\//,"").split("/")[0]}\n`,code:6}}
+function onCommand(raw){
+  const command=raw.trim();if(!command)return;
+  appendCommand(command);lastCommand=command;const beforeDone=isDone(currentTask.id);const r=shell.execute(command);lastResult=r;
+  if(r.output==='__CLEAR__'){clearTerminal();}else if(r.output){appendOutput(r.output,r.code===0?'normal':'error');}
+  els.commandInput.value='';commandCursor=shell.history.length;renderTerminalStatus();
+  if(!beforeDone){const passed=evaluateChecks().every(Boolean);if(passed&&r.code===0)completeCurrentTask();else if(r.code!==0||looksLikeAttempt(command)){registerAttempt(r);}}
+  renderChecks();renderAttemptInfo();scrollTerminal();
+}
+function looksLikeAttempt(command){
+  const patterns=currentTask.checks.filter(c=>c.type==='command').map(c=>c.pattern);if(!patterns.length)return false;
+  const first=command.split(/\s+/)[0];return currentTask.example?.startsWith(first)&&lastResult.code===0&&!evaluateChecks().every(Boolean);
+}
+function registerAttempt(r){
+  state.attempts[currentTask.id]=(state.attempts[currentTask.id]||0)+1;save();
+  if(state.settings.coach){const n=taskAttempts();els.coachMeta.textContent=n===1?'First correction':'Adaptive correction';els.coachText.innerHTML=coachMessage(r,n);els.coachBox.classList.remove('hidden');}
+}
+function coachMessage(r,n){
+  if(r.code!==0){const out=(r.output||'').split('\n')[0];return `The shell returned an error: <code>${esc(out)}</code>. Read the error literally, verify the path or command syntax, then retry.`;}
+  const hint=currentTask.hints[Math.min(n-1,currentTask.hints.length-1)]||currentTask.hints[0];return `That command ran, but the target state is not complete yet. ${inlineCode(hint||'Compare your command with the objective.')}`;
+}
+function completeCurrentTask(){
+  if(isDone(currentTask.id))return;
+  state.completed.push(currentTask.id);const score=currentPerformance();state.scores[currentTask.id]=score;let award=currentTask.kind==='Exam'?100:20+currentTask.difficulty*10;award=Math.max(10,Math.round(award*score/100));state.xp+=award;updateStreak();save();
+  els.objectiveStatus.textContent='Complete';els.objectiveStatus.classList.add('complete');els.coachBox.classList.add('hidden');renderSidebar();renderStats();renderChecks();toast('Mission complete',`+${award} XP · ${score}% execution score`,'success');
+  if(currentTask.kind==='Exam'){els.examTitle.textContent=`${currentTask.title} passed`;els.examText.textContent=`You completed the scenario with a ${score}% execution score and earned ${award} XP.`;if(typeof els.examModal.showModal==='function')els.examModal.showModal();}
+  if(state.settings.autoAdvance&&taskIndex()<tasks.length-1){autoAdvanceTimer=setTimeout(()=>selectTask(tasks[taskIndex()+1]),900);}
+}
+function updateStreak(){const d=today();if(state.lastPracticeDate===d)return;const prev=new Date();prev.setDate(prev.getDate()-1);const y=prev.toISOString().slice(0,10);state.streak=state.lastPracticeDate===y?(state.streak||0)+1:1;state.lastPracticeDate=d;}
 
-  function seedProcesses(s){s.processes=[{pid:412,name:"bash",cpu:0},{pid:731,name:"worker",cpu:96.4},{pid:812,name:"sshd",cpu:.1}]}
-  function coachFor(command,result){const r=currentRep();if(r.checks.every(ch=>safeTest(ch.test)))return;if(result.code!==0){els.coachStatus.textContent=`Exit ${result.code}`;els.coachText.textContent="That command did not succeed. Read the error literally: Linux errors usually tell you whether the problem is the command, path, permission, or process.";return}els.coachStatus.textContent="State changed";if(command==="ls"||command.startsWith("ls "))els.coachText.textContent="Good inspection step. Now use what the listing tells you to reach the exact objective.";else if(command==="pwd")els.coachText.textContent="You established location. Use that context to choose relative paths confidently.";else if(command==="ps"||command==="ps aux")els.coachText.textContent="Inspection before action is the right habit. Find the target PID, then control the process.";else els.coachText.textContent="The command ran successfully, but the mission state is not complete yet. Compare the objective with the checks above."}
+function appendCommand(command){const line=document.createElement('div');line.className='output-line command';line.innerHTML=`<span class="prompt-copy">${esc(promptText())}</span>${esc(command)}`;els.terminalOutput.appendChild(line);}
+function appendOutput(text,type='normal'){String(text).split('\n').forEach(t=>{const line=document.createElement('div');line.className='output-line '+(type==='error'?'error':'');line.textContent=t;els.terminalOutput.appendChild(line);});}
+function appendInfo(text){const line=document.createElement('div');line.className='output-line dim';line.textContent=text;els.terminalOutput.appendChild(line);}
+function clearTerminal(){els.terminalOutput.innerHTML='';}
+function printWelcome(){appendInfo(`Linux Gym sandbox · ${totalTasks} missions · type 'help' for supported commands`);appendInfo('Your actions change a local virtual Linux state; objectives are checked automatically.');}
+function promptText(){return `student@linux-gym:${shell.displayPath()}$`;}
+function renderTerminalStatus(){els.prompt.textContent=promptText();els.cwdStatus.textContent=shell.displayPath();els.branchStatus.textContent=shell.git.initialized?`git:${shell.git.branch}`:'git:—';const running=Object.values(shell.docker.containers).filter(c=>c.status==='running').length;els.labStatus.textContent=running?`${running} container${running===1?'':'s'} running`:'local sandbox';}
+function scrollTerminal(){requestAnimationFrame(()=>{els.terminal.scrollTop=els.terminal.scrollHeight;});}
 
-  function resolvePath(input){let p=stripQuotes(input||".");if(p==="~")p=shell.env.HOME;else if(p.startsWith("~/"))p=shell.env.HOME+p.slice(1);else if(!p.startsWith("/"))p=shell.cwd+"/"+p;const parts=[];for(const seg of p.split("/")){if(!seg||seg===".")continue;if(seg==="..")parts.pop();else parts.push(seg)}return"/"+parts.join("/")}
-  function getNode(s,path){if(path==="/")return s.fs;const parts=path.split("/").filter(Boolean);let node=s.fs;for(const part of parts){if(!node||node.type!=="dir"||!node.children[part])return null;node=node.children[part]}return node}
-  const exists=(s,p)=>!!getNode(s,p),isDir=(s,p)=>getNode(s,p)?.type==="dir",isFile=(s,p)=>getNode(s,p)?.type==="file";
-  function readFile(s,p){const n=getNode(s,p);return n?.type==="file"?n.content:null}
-  function ensureDir(s,path){const parts=path.split("/").filter(Boolean);let node=s.fs;for(const part of parts){if(!node.children[part])node.children[part]=dir({});node=node.children[part];if(node.type!=="dir")throw new Error(`${part}: Not a directory`)}return node}
-  function writeFile(s,path,content,mode="rw-r--r--"){const parent=ensureDir(s,dirname(path));parent.children[basename(path)]=file(content,mode)}
-  function removePath(s,path){const parent=getNode(s,dirname(path));if(parent?.type==="dir")delete parent.children[basename(path)]}
-  function dirname(path){if(path==="/")return"/";const parts=path.split("/").filter(Boolean);parts.pop();return"/"+parts.join("/")}
-  function basename(path){if(path==="/")return"/";return path.split("/").filter(Boolean).at(-1)||"/"}
-  function stripQuotes(s){if((s.startsWith('"')&&s.endsWith('"'))||(s.startsWith("'")&&s.endsWith("'")))return s.slice(1,-1);return s}
-  function displayPath(path){if(path==="/home/student")return"~";if(path.startsWith("/home/student/"))return"~"+path.slice("/home/student".length);return path}
-  function renderPrompt(){const short=displayPath(shell.cwd);els.prompt.textContent=`student@linux-gym:${short}$`;els.cwdStatus.textContent=short}
-  function printCommand(command){const d=document.createElement("div");d.className="output-line command";d.innerHTML=`<span class="prompt-copy">${escapeHtml(els.prompt.textContent)}</span>${escapeHtml(command)}`;els.terminalOutput.appendChild(d);scrollTerminal()}
-  function printLine(text,cls=""){const d=document.createElement("div");d.className=`output-line ${cls}`;d.textContent=text;els.terminalOutput.appendChild(d);scrollTerminal()}
-  function printRaw(text,cls=""){String(text).replace(/\n$/,"").split("\n").forEach(line=>printLine(line,cls))}
-  function clearTerminal(){els.terminalOutput.innerHTML=""}
-  function scrollTerminal(){requestAnimationFrame(()=>{els.terminal.scrollTop=els.terminal.scrollHeight})}
-  function autocomplete(){const input=els.commandInput.value,cursor=els.commandInput.selectionStart,before=input.slice(0,cursor),token=before.split(/\s+/).at(-1)||"",commands=["help","pwd","ls","cd","mkdir","touch","cat","echo","cp","mv","rm","grep","head","tail","wc","chmod","ps","kill","ip","ss","curl","whoami","uname","env","export","history","clear","reset"];let candidates=[];if(!before.includes(" "))candidates=commands.filter(c=>c.startsWith(token));else{const node=getNode(shell,shell.cwd);if(node?.type==="dir")candidates=Object.keys(node.children).filter(n=>n.startsWith(token))}if(candidates.length===1){const replacement=candidates[0],start=cursor-token.length;els.commandInput.value=input.slice(0,start)+replacement+input.slice(cursor);els.commandInput.setSelectionRange(start+replacement.length,start+replacement.length)}else if(candidates.length>1)printLine(candidates.join("  "),"dim")}
-  function toast(title,text,type=""){const el=document.createElement("div");el.className=`toast ${type}`;el.innerHTML=`<strong>${escapeHtml(title)}</strong><span>${escapeHtml(text)}</span>`;els.toastStack.appendChild(el);setTimeout(()=>el.remove(),3200)}
-  function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-  function beep(freq,seconds){if(!settings.sound)return;try{const Ctx=window.AudioContext||window.webkitAudioContext,ctx=new Ctx,osc=ctx.createOscillator(),gain=ctx.createGain();osc.frequency.value=freq;gain.gain.setValueAtTime(.03,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+seconds);osc.connect(gain).connect(ctx.destination);osc.start();osc.stop(ctx.currentTime+seconds)}catch{}}
-  function applySettings(){els.soundToggle.checked=settings.sound;els.compactToggle.checked=settings.compact;els.coachToggle.checked=settings.coach;els.terminal.classList.toggle("compact",settings.compact);els.coachCard.classList.toggle("hidden",!settings.coach)}
-  function closeSidebarMobile(){els.sidebar.classList.remove("open")}
-  function setMobilePanel(panel){document.querySelectorAll(".mobile-tab").forEach(btn=>btn.classList.toggle("active",btn.dataset.mobilePanel===panel));if(panel==="map"){els.sidebar.classList.add("open");return}closeSidebarMobile();els.workspace.classList.toggle("show-terminal",panel==="terminal");if(panel==="terminal")setTimeout(()=>els.commandInput.focus(),60)}
+function showHint(){
+  const max=currentTask.hints.length;if(!max)return;const current=hintCount();if(current<max){state.hints[currentTask.id]=current+1;save();renderHint();renderAttemptInfo();if(state.settings.coach){els.coachMeta.textContent='Hint requested';els.coachText.innerHTML=inlineCode(currentTask.hints[Math.min(current,max-1)]);els.coachBox.classList.remove('hidden');}}
+}
+function toast(title,text,type=''){const box=document.createElement('div');box.className='toast '+type;box.innerHTML=`<strong>${esc(title)}</strong><span>${esc(text)}</span>`;els.toastStack.appendChild(box);setTimeout(()=>box.remove(),3400);}
 
-  els.commandInput.addEventListener("keydown",e=>{if(e.key==="Enter"){const v=els.commandInput.value;els.commandInput.value="";handleCommand(v)}else if(e.key==="ArrowUp"){e.preventDefault();if(!shell.history.length)return;historyIndex=Math.max(0,historyIndex-1);els.commandInput.value=shell.history[historyIndex]||"";queueMicrotask(()=>els.commandInput.setSelectionRange(9999,9999))}else if(e.key==="ArrowDown"){e.preventDefault();historyIndex=Math.min(shell.history.length,historyIndex+1);els.commandInput.value=historyIndex===shell.history.length?"":shell.history[historyIndex]}else if(e.key==="Tab"){e.preventDefault();autocomplete()}else if(e.key.toLowerCase()==="l"&&e.ctrlKey){e.preventDefault();clearTerminal()}else if(e.key.toLowerCase()==="c"&&e.ctrlKey&&!els.commandInput.value){e.preventDefault();printLine("^C","dim")}});
-  els.terminal.addEventListener("click",()=>els.commandInput.focus());
-  els.moduleList.addEventListener("click",e=>{const rep=e.target.closest("[data-rep]");if(rep)return jumpTo(Number(rep.dataset.module),Number(rep.dataset.rep));const mod=e.target.closest("[data-module]");if(mod)jumpTo(Number(mod.dataset.module),0)});
-  els.hintBtn.addEventListener("click",revealHint);els.nextMissionBtn.addEventListener("click",goNext);els.prevMissionBtn.addEventListener("click",goPrev);$("clearBtn").addEventListener("click",clearTerminal);$("resetEnvBtn").addEventListener("click",()=>{activeRepSetupKey="";setupCurrentRep(true);renderMission();toast("Environment reset","Mission state restored.")});$("resetCourseBtn").addEventListener("click",resetCourse);$("dailyBtn").addEventListener("click",showDailyChallenge);$("settingsBtn").addEventListener("click",()=>els.settingsModal.showModal());$("brandBtn").addEventListener("click",()=>jumpTo(0,0));$("closeSidebarBtn").addEventListener("click",closeSidebarMobile);document.querySelectorAll(".mobile-tab").forEach(btn=>btn.addEventListener("click",()=>setMobilePanel(btn.dataset.mobilePanel)));els.soundToggle.addEventListener("change",()=>{settings.sound=els.soundToggle.checked;saveSettings()});els.compactToggle.addEventListener("change",()=>{settings.compact=els.compactToggle.checked;saveSettings();applySettings()});els.coachToggle.addEventListener("change",()=>{settings.coach=els.coachToggle.checked;saveSettings();applySettings()});
-  window.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key==="Enter"){e.preventDefault();els.commandInput.focus();if(window.innerWidth<=820)setMobilePanel("terminal")}});
-  setInterval(()=>{const sec=Math.floor((Date.now()-sessionStart)/1000);els.sessionTime.textContent=`${String(Math.floor(sec/60)).padStart(2,"0")}:${String(sec%60).padStart(2,"0")}`},1000);
-  renderAll();setTimeout(()=>els.commandInput.focus(),150);
+function applySettings(){els.terminal.classList.toggle('compact',state.settings.compact);els.compactToggle.checked=state.settings.compact;els.coachToggle.checked=state.settings.coach;els.autoAdvanceToggle.checked=state.settings.autoAdvance;if(!state.settings.coach)els.coachBox.classList.add('hidden');}
+function saveSettings(){state.settings.compact=els.compactToggle.checked;state.settings.coach=els.coachToggle.checked;state.settings.autoAdvance=els.autoAdvanceToggle.checked;save();applySettings();}
+function setMobileView(view){document.body.classList.toggle('mobile-view-terminal',view==='terminal');document.querySelectorAll('.mobile-tab').forEach(b=>b.classList.toggle('active',b.dataset.mobileView===view));if(view==='course')els.sidebar.classList.add('mobile-open');if(view==='terminal')setTimeout(()=>els.commandInput.focus(),30);}
+function closeMobileSidebar(){els.sidebar.classList.remove('mobile-open');}
+
+function dailyChallenge(){
+  const day=Math.floor(Date.now()/86400000);const incomplete=tasks.filter(t=>!isDone(t.id)&&t.kind!=='Exam');const pool=incomplete.length?incomplete:tasks.filter(t=>t.kind!=='Exam');selectTask(pool[day%pool.length]);toast('Daily challenge',`Today: ${currentTask.trackTitle} · ${currentTask.title}`);
+}
+function resetProgress(){
+  if(!window.confirm('Reset all Linux Gym progress and XP on this device?'))return;
+  state=defaultState();currentTask=tasks[0];localStorage.removeItem(STORAGE);resetLab(false);save();renderAll();toast('Progress reset','The course is back at mission one.');
+}
+
+els.commandInput.addEventListener('keydown',e=>{
+  if(e.key==='Enter'){e.preventDefault();onCommand(els.commandInput.value);return;}
+  if(e.key==='ArrowUp'){e.preventDefault();if(!shell.history.length)return;commandCursor=Math.max(0,commandCursor-1);els.commandInput.value=shell.history[commandCursor]||'';queueMicrotask(()=>els.commandInput.setSelectionRange(9999,9999));return;}
+  if(e.key==='ArrowDown'){e.preventDefault();if(!shell.history.length)return;commandCursor=Math.min(shell.history.length,commandCursor+1);els.commandInput.value=commandCursor===shell.history.length?'':shell.history[commandCursor]||'';return;}
+  if(e.key==='Tab'){e.preventDefault();els.commandInput.value=shell.complete(els.commandInput.value);return;}
+  if(e.key.toLowerCase()==='l'&&e.ctrlKey){e.preventDefault();clearTerminal();return;}
+  if(e.key.toLowerCase()==='c'&&e.ctrlKey){e.preventDefault();appendCommand(els.commandInput.value);appendInfo('^C');els.commandInput.value='';}
+});
+els.terminal.addEventListener('click',()=>els.commandInput.focus());
+els.clearBtn.addEventListener('click',()=>{clearTerminal();els.commandInput.focus();});
+els.resetEnvBtn.addEventListener('click',()=>resetLab());
+els.restartTaskBtn.addEventListener('click',()=>resetLab());
+els.hintBtn.addEventListener('click',showHint);
+els.prevTaskBtn.addEventListener('click',()=>{const i=taskIndex();if(i>0)selectTask(tasks[i-1]);});
+els.nextTaskBtn.addEventListener('click',()=>{const i=taskIndex();if(i<tasks.length-1)selectTask(tasks[i+1]);});
+els.adaptiveBtn.addEventListener('click',()=>{const t=adaptiveTarget();if(t){selectTask(t);toast('Adaptive practice',`Selected from your weakest current track: ${t.trackTitle}.`);}});
+els.dailyBtn.addEventListener('click',dailyChallenge);els.resetProgressBtn.addEventListener('click',resetProgress);els.homeBtn.addEventListener('click',()=>selectTask(tasks[0]));
+els.settingsBtn.addEventListener('click',()=>{if(typeof els.settingsModal.showModal==='function')els.settingsModal.showModal();});
+[els.compactToggle,els.coachToggle,els.autoAdvanceToggle].forEach(x=>x.addEventListener('change',saveSettings));
+els.focusBtn.addEventListener('click',()=>{focusMode=!focusMode;els.app.classList.toggle('focus-terminal',focusMode);els.focusBtn.textContent=focusMode?'Exit focus':'Focus';setTimeout(()=>els.commandInput.focus(),20);});
+els.closeSidebarBtn.addEventListener('click',closeMobileSidebar);
+document.querySelectorAll('.mobile-tab').forEach(b=>b.addEventListener('click',()=>setMobileView(b.dataset.mobileView)));
+window.addEventListener('resize',()=>{if(window.innerWidth>820){closeMobileSidebar();document.body.classList.remove('mobile-view-terminal');}});
+
+preparePrerequisites(currentTask);taskStartHistory=shell.history.length;printWelcome();renderAll();commandCursor=shell.history.length;setTimeout(()=>els.commandInput.focus(),60);
 })();
