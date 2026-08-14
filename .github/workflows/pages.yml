@@ -42,6 +42,21 @@ jobs:
           grep -q 'shell.js' index.html
           grep -q 'app.js' index.html
 
+      - name: Browser smoke test
+        run: |
+          google-chrome --version
+          python3 -m http.server 4173 >/tmp/linux-gym-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:4173/index.html >/dev/null; then break; fi
+            sleep 0.2
+          done
+          google-chrome --headless --no-sandbox --disable-gpu --virtual-time-budget=1500 --dump-dom http://127.0.0.1:4173/ > /tmp/linux-gym-dom.html
+          grep -q 'Shell Fundamentals' /tmp/linux-gym-dom.html
+          grep -q '124 missions' /tmp/linux-gym-dom.html
+          grep -q 'student@linux-gym' /tmp/linux-gym-dom.html
+
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: test
