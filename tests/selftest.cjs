@@ -4,6 +4,7 @@ require('../data.js');
 require('../data-ext.js');
 require('../shell.js');
 require('../shell-ext.js');
+require('../shell-v3-fixes.js');
 require('../runtime-fixes.js');
 
 const { tracks, tasks, totalTasks } = globalThis.LinuxGymData;
@@ -75,6 +76,9 @@ run('kubectl get nodes -o wide', /control-01/);
 run('jq -r .status health.json', /ok/);
 run('openssl rand -hex 16', /^[0-9a-f]{32}$/);
 run('vmstat 1 1', /memory/);
+run('find /usr/bin -perm -4000', /passwd/);
+run('git tag -a v1.2.0 -m "release 1.2.0"');
+run('git tag --list', /v1.2.0/);
 run('docker build -t app:1.2.0 .', /Successfully tagged/);
 run('docker compose config', /services:/);
 
