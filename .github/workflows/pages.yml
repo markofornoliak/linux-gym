@@ -85,3 +85,20 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Verify live Pages response
+        env:
+          LIVE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          verified=0
+          for i in {1..30}; do
+            if curl -fsSL "$LIVE_URL" -o /tmp/linux-gym-live.html; then
+              if grep -q 'runtime-fixes.js' /tmp/linux-gym-live.html && grep -q 'responsive.css' /tmp/linux-gym-live.html && grep -q 'Linux Gym' /tmp/linux-gym-live.html; then
+                verified=1
+                break
+              fi
+            fi
+            sleep 2
+          done
+          test "$verified" = "1"
+          echo "Live Pages verification passed: $LIVE_URL"
