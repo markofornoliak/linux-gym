@@ -7,6 +7,7 @@
   <meta name="description" content="Linux Gym — a serious browser-first Linux and DevOps training platform with a stateful shell, adaptive practice and exams.">
   <title>Linux Gym — Learn Linux by Doing</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="responsive.css">
 </head>
 <body>
   <div class="app" id="app">
@@ -55,13 +56,13 @@
     </aside>
 
     <main class="workspace">
-      <section class="lesson" id="lessonPanel">
-        <div class="mobile-tabs mobile-only">
-          <button class="mobile-tab active" data-mobile-view="lesson">Mission</button>
-          <button class="mobile-tab" data-mobile-view="terminal">Terminal</button>
-          <button class="mobile-tab" data-mobile-view="course">Course</button>
-        </div>
+      <div class="mobile-tabs mobile-only" id="mobileTabs">
+        <button class="mobile-tab active" data-mobile-view="lesson">Mission</button>
+        <button class="mobile-tab" data-mobile-view="terminal">Terminal</button>
+        <button class="mobile-tab" data-mobile-view="course">Course</button>
+      </div>
 
+      <section class="lesson" id="lessonPanel">
         <div class="lesson-scroll">
           <div class="lesson-topline">
             <div class="breadcrumb"><span id="trackIndex">01</span><span id="trackName">Fundamentals</span></div>
@@ -165,6 +166,7 @@
 
   <script src="data.js"></script>
   <script src="shell.js"></script>
+  <script src="runtime-fixes.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
