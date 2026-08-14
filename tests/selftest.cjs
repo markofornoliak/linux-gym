@@ -20,6 +20,58 @@ for (const t of tasks) {
   }
 }
 
+function stateCheck(shell, check, lastCommand, lastResult, historyStart) {
+  switch (check.type) {
+    case 'command': return lastResult.code === 0 && new RegExp(check.pattern, check.flags || 'i').test(lastCommand);
+    case 'history': return new RegExp(check.pattern, check.flags || 'i').test(shell.history.slice(historyStart).join('\n'));
+    case 'cwd': return shell.cwd === check.value;
+    case 'exists': return shell.exists(check.value);
+    case 'missing': return !shell.exists(check.value);
+    case 'fileContains': return (shell.readFile(check.value) || '').includes(check.contains || '');
+    case 'mode': return shell.mode(check.value) === check.mode;
+    case 'owner': return shell.owner(check.value) === check.owner;
+    case 'executable': return shell.isExecutable(check.value);
+    case 'process': return shell.hasProcess(check.value);
+    case 'processMissing': return !shell.processByPid(check.value);
+    case 'processNameMissing': return !shell.hasProcess(check.value);
+    case 'env': return shell.env[check.value] === check.equals;
+    case 'git': return shell.git[check.value] === check.equals;
+    case 'gitStaged': return shell.git.staged.includes(check.value);
+    case 'gitCommits': return shell.git.commits.length >= (check.min || check.value || 1);
+    case 'gitBranchExists': return shell.git.branches.includes(check.value);
+    case 'gitBranch': return shell.git.branch === check.value;
+    case 'gitRemote': return Boolean(shell.git.remotes[check.value]);
+    case 'gitStash': return shell.git.stash >= (check.min || 1);
+    case 'dockerImage': return shell.hasDockerImage(check.value);
+    case 'dockerContainer': {
+      const c = shell.dockerContainer(check.value);
+      return Boolean(c) && (!check.status || c.status === check.status) && (!check.port || c.port === check.port);
+    }
+    case 'dockerContainerMissing': return !shell.dockerContainer(check.value);
+    case 'service': return shell.services[check.value]?.status === check.status;
+    case 'serviceEnabled': return Boolean(shell.services[check.value]?.enabled);
+    default: throw new Error(`unknown check type ${check.type}`);
+  }
+}
+
+// Execute the canonical learning path for every track and ensure every mission
+// is actually completable against the same state model used by the browser UI.
+for (const track of tracks) {
+  const curriculumShell = new VirtualShell();
+  for (const rawTask of track.tasks) {
+    const mission = tasks.find(t => t.id === `${track.id}/${rawTask.slug}`);
+    const historyStart = curriculumShell.history.length;
+    const response = curriculumShell.execute(mission.example);
+    assert.equal(response.code, 0, `mission example failed: ${mission.id} :: ${mission.example} :: ${response.output}`);
+    for (const check of mission.checks) {
+      assert.ok(
+        stateCheck(curriculumShell, check, mission.example, response, historyStart),
+        `mission did not reach target state: ${mission.id} :: ${check.type} :: ${check.label}`
+      );
+    }
+  }
+}
+
 const sh = new VirtualShell();
 function run(command, includes) {
   const r = sh.execute(command);
@@ -73,4 +125,4 @@ run('gzip status.txt');
 assert.ok(sh.exists('/home/student/status.txt.gz'));
 run('false || echo recovered', /recovered/);
 
-console.log(`Linux Gym self-test passed: ${totalTasks} missions across ${tracks.length} tracks.`);
+console.log(`Linux Gym self-test passed: ${totalTasks} missions across ${tracks.length} tracks, including full curriculum execution.`);
