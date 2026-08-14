@@ -25,6 +25,7 @@ jobs:
         run: |
           node --check data.js
           node --check shell.js
+          node --check runtime-fixes.js
           node --check app.js
           node --check tests/selftest.cjs
 
@@ -35,11 +36,15 @@ jobs:
         run: |
           test -f index.html
           test -f styles.css
+          test -f responsive.css
           test -f data.js
           test -f shell.js
+          test -f runtime-fixes.js
           test -f app.js
+          grep -q 'responsive.css' index.html
           grep -q 'data.js' index.html
           grep -q 'shell.js' index.html
+          grep -q 'runtime-fixes.js' index.html
           grep -q 'app.js' index.html
 
       - name: Browser smoke test
@@ -56,6 +61,7 @@ jobs:
           grep -q 'Shell Fundamentals' /tmp/linux-gym-dom.html
           grep -q '124 missions' /tmp/linux-gym-dom.html
           grep -q 'student@linux-gym' /tmp/linux-gym-dom.html
+          grep -q 'mobileTabs' /tmp/linux-gym-dom.html
 
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
