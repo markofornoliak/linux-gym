@@ -24,12 +24,15 @@ jobs:
       - name: Validate JavaScript syntax
         run: |
           node --check data.js
+          node --check data-ext.js
           node --check shell.js
+          node --check shell-ext.js
+          node --check shell-v3-fixes.js
           node --check runtime-fixes.js
           node --check app.js
           node --check tests/selftest.cjs
 
-      - name: Run curriculum and shell self-test
+      - name: Run full curriculum and shell self-test
         run: node tests/selftest.cjs
 
       - name: Verify static application
@@ -38,12 +41,16 @@ jobs:
           test -f styles.css
           test -f responsive.css
           test -f data.js
+          test -f data-ext.js
           test -f shell.js
+          test -f shell-ext.js
+          test -f shell-v3-fixes.js
           test -f runtime-fixes.js
           test -f app.js
           grep -q 'responsive.css' index.html
-          grep -q 'data.js' index.html
-          grep -q 'shell.js' index.html
+          grep -q 'data-ext.js' index.html
+          grep -q 'shell-ext.js' index.html
+          grep -q 'shell-v3-fixes.js' index.html
           grep -q 'runtime-fixes.js' index.html
           grep -q 'app.js' index.html
 
@@ -57,9 +64,10 @@ jobs:
             if curl -fsS http://127.0.0.1:4173/index.html >/dev/null; then break; fi
             sleep 0.2
           done
-          google-chrome --headless --no-sandbox --disable-gpu --virtual-time-budget=1500 --dump-dom http://127.0.0.1:4173/ > /tmp/linux-gym-dom.html
+          google-chrome --headless --no-sandbox --disable-gpu --virtual-time-budget=1800 --dump-dom http://127.0.0.1:4173/ > /tmp/linux-gym-dom.html
           grep -q 'Shell Fundamentals' /tmp/linux-gym-dom.html
-          grep -q '124 missions' /tmp/linux-gym-dom.html
+          grep -q 'Kubernetes' /tmp/linux-gym-dom.html
+          grep -q '184 missions' /tmp/linux-gym-dom.html
           grep -q 'student@linux-gym' /tmp/linux-gym-dom.html
           grep -q 'mobileTabs' /tmp/linux-gym-dom.html
 
@@ -73,19 +81,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
       - name: Setup Pages
         uses: actions/configure-pages@v5
-
       - name: Upload static site
         uses: actions/upload-pages-artifact@v4
         with:
           path: "."
-
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
       - name: Verify live Pages response
         env:
           LIVE_URL: ${{ steps.deployment.outputs.page_url }}
@@ -93,7 +97,7 @@ jobs:
           verified=0
           for i in {1..30}; do
             if curl -fsSL "$LIVE_URL" -o /tmp/linux-gym-live.html; then
-              if grep -q 'runtime-fixes.js' /tmp/linux-gym-live.html && grep -q 'responsive.css' /tmp/linux-gym-live.html && grep -q 'Linux Gym' /tmp/linux-gym-live.html; then
+              if grep -q 'data-ext.js' /tmp/linux-gym-live.html && grep -q 'shell-v3-fixes.js' /tmp/linux-gym-live.html && grep -q 'Linux Gym' /tmp/linux-gym-live.html; then
                 verified=1
                 break
               fi
