@@ -27,6 +27,7 @@ jobs:
           node --check data-ext.js
           node --check shell.js
           node --check shell-ext.js
+          node --check shell-v3-fixes.js
           node --check runtime-fixes.js
           node --check app.js
           node --check tests/selftest.cjs
@@ -43,11 +44,13 @@ jobs:
           test -f data-ext.js
           test -f shell.js
           test -f shell-ext.js
+          test -f shell-v3-fixes.js
           test -f runtime-fixes.js
           test -f app.js
           grep -q 'responsive.css' index.html
           grep -q 'data-ext.js' index.html
           grep -q 'shell-ext.js' index.html
+          grep -q 'shell-v3-fixes.js' index.html
           grep -q 'runtime-fixes.js' index.html
           grep -q 'app.js' index.html
 
@@ -94,7 +97,7 @@ jobs:
           verified=0
           for i in {1..30}; do
             if curl -fsSL "$LIVE_URL" -o /tmp/linux-gym-live.html; then
-              if grep -q 'data-ext.js' /tmp/linux-gym-live.html && grep -q 'shell-ext.js' /tmp/linux-gym-live.html && grep -q 'Linux Gym' /tmp/linux-gym-live.html; then
+              if grep -q 'data-ext.js' /tmp/linux-gym-live.html && grep -q 'shell-v3-fixes.js' /tmp/linux-gym-live.html && grep -q 'Linux Gym' /tmp/linux-gym-live.html; then
                 verified=1
                 break
               fi
