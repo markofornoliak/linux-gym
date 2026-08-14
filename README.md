@@ -1,35 +1,84 @@
 # Linux Gym
 
-A browser-first interactive Linux command-line trainer.
+A browser-first Linux and DevOps practice platform built for learning by doing.
 
-**Target Pages URL:** `https://markofornoliak.github.io/linux-gym/`
+**Live:** `https://markofornoliak.github.io/linux-gym/`
 
-## What it is
+## Platform
 
-Linux Gym is a static, zero-backend learning environment designed for GitHub Pages. It combines a realistic virtual shell with automatically verified training reps, course progression, hints, XP, streaks, local progress persistence, and a responsive mobile UI.
+Linux Gym runs as a static GitHub Pages application with a stateful virtual Linux environment. It does not execute commands on the visitor's real operating system and does not require a backend.
 
-It is an original implementation and does not include or redistribute Shell Gym source code.
+The curriculum contains **124 missions across 13 tracks**, including **4 multi-step scenario exams**:
 
-## Features
+1. Shell Fundamentals
+2. Files & Directories
+3. Text & Pipelines
+4. Permissions & Identity
+5. Processes & Jobs
+6. Networking
+7. Bash Scripting
+8. Git
+9. Docker
+10. SSH & Remote
+11. DevOps Operations
+12. Troubleshooting
+13. Scenario Exams
 
-- Virtual filesystem and shell state
-- 8 modules and 24 verified reps
-- Automatic mission checks
-- `pwd`, `ls`, `cd`, `mkdir`, `touch`, `cat`, redirects, `grep`, pipes, `head`, `tail`, `wc`, `chmod`, `ps`, `kill`, `ip`, `ss`, `curl` and more
+## Training engine
+
+- Stateful virtual filesystem, environment variables and permissions
+- Processes, jobs and signals
+- Network interfaces, routes, sockets, DNS and HTTP simulations
+- Git repository state: staging, commits, branches, remotes and stash
+- Docker images and container lifecycle state
+- SSH key and remote-session exercises
+- systemd services, journal, disk and memory diagnostics
+- Pipes, redirects, `&&`, `||`, `;`, variables and command substitution
 - Command history and tab completion
-- Persistent XP, streaks, achievements, and progress
-- Daily randomized challenge
-- Responsive mission / terminal / course mobile flow
-- No framework, backend, build step, or external dependency
+- Automatic objective validation against command history and system state
+- XP, mastery and per-track progress
+- Adaptive practice that prioritizes incomplete work in weaker tracks
+- Hints and contextual correction with execution-score penalties
+- Local progress persistence with `localStorage`
 
-## Run locally
+## Interface
 
-Open `index.html` directly or serve the folder with any static server.
+The UI is intentionally restrained: a light neutral learning workspace, a graphite terminal, muted blue interaction accents and sage progress states. Desktop keeps course, mission and terminal visible together; mobile uses persistent Mission / Terminal / Course switching.
+
+## Quality checks
+
+Every change runs GitHub Actions checks before Pages deployment:
+
+- JavaScript syntax validation
+- Curriculum integrity checks
+- Stateful shell regression tests
+- Static asset/link validation
+- Headless Chrome smoke test
+- GitHub Pages deployment only after the test job passes on `main`
+
+Run the core test locally with:
+
+```bash
+node tests/selftest.cjs
+```
+
+Serve the UI locally with:
 
 ```bash
 python3 -m http.server 8000
 ```
 
-## GitHub Pages
+Then open `http://localhost:8000`.
 
-The repository includes a Pages workflow. In **Settings → Pages**, set **Source** to **GitHub Actions** once. After that, pushes to `main` deploy automatically.
+## Architecture
+
+- `index.html` — application shell
+- `styles.css` — core visual system
+- `responsive.css` — mobile workspace behavior
+- `data.js` — curriculum and validation definitions
+- `shell.js` — stateful Linux/DevOps emulator
+- `runtime-fixes.js` — small runtime compatibility/regression guards
+- `app.js` — training UI, progress and adaptive practice
+- `tests/selftest.cjs` — curriculum and shell regression suite
+
+Linux Gym is an original implementation and does not include or redistribute Shell Gym source code.
