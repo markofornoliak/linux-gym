@@ -14,6 +14,10 @@ for (const t of tasks) {
   assert.ok(t.id && t.title && t.objective && t.example, `invalid task metadata: ${t.id}`);
   assert.ok(Array.isArray(t.checks) && t.checks.length > 0, `task has no checks: ${t.id}`);
   assert.ok(t.difficulty >= 1 && t.difficulty <= 5, `invalid difficulty: ${t.id}`);
+  for (const check of t.checks.filter(c => c.type === 'command')) {
+    const regex = new RegExp(check.pattern, check.flags || 'i');
+    assert.ok(regex.test(t.example), `canonical example does not satisfy command check: ${t.id} :: ${check.pattern} :: ${t.example}`);
+  }
 }
 
 const sh = new VirtualShell();
